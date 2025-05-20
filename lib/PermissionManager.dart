@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -20,25 +21,62 @@ class PermissionManager {
     _permissionCompleter = Completer<bool>();
     
     try {
-      // Request all needed permissions at once
-      Map<Permission, PermissionStatus> statuses = await [
-        Permission.storage,
-        Permission.location,
-        Permission.manageExternalStorage, // For Android 11+
-        Permission.nearbyWifiDevices,     // For Android 12+
-        Permission.mediaLibrary,          // For iOS
-        Permission.photos,                // For iOS
-      ].request();
+      List<Permission> permissions = [];
       
-      // Log all permissions for debugging
+      // Android-specific permissions
+      if (Platform.isAndroid) {
+        // For Android 10 and below, use storage permission
+        permissions.add(Permission.storage);
+        
+        // Common Android permissions
+        permissions.addAll([
+          Permission.location,
+        ]);
+        
+        // Add MANAGE_EXTERNAL_STORAGE for Android 11+
+        if (await Permission.manageExternalStorage.status != PermissionStatus.granted) {
+          permissions.add(Permission.manageExternalStorage);
+        }
+        
+        // For Android 12+, add NEARBY_WIFI_DEVICES
+        if (await Permission.nearbyWifiDevices.status != PermissionStatus.permanentlyDenied) {
+          permissions.add(Permission.nearbyWifiDevices);
+        }
+      }
+      
+      // iOS-specific permissions
+      if (Platform.isIOS) {
+        permissions.addAll([
+          Permission.photos,
+          Permission.mediaLibrary,
+        ]);
+      }
+      
+      // Request all permissions at once
+      Map<Permission, PermissionStatus> statuses = await permissions.request();
       debugPrint('Permission statuses: $statuses');
       
-      // Check if all critical permissions are granted
-      bool allGranted = statuses.values.every((status) => 
-          status.isGranted || status.isLimited || status.isDenied == false);
+      // For Android 11+, we need to check MANAGE_EXTERNAL_STORAGE separately
+      if (Platform.isAndroid && 
+          await Permission.manageExternalStorage.status != PermissionStatus.granted) {
+        // On Android 11+, MANAGE_EXTERNAL_STORAGE requires app settings
+        if (statuses[Permission.storage] == PermissionStatus.granted) {
+          // Regular storage is enough for basic functionality
+          _permissionCompleter?.complete(true);
+          return true;
+        } else {
+          // Try to get full access
+          await openAppSettings();
+        }
+      }
       
-      _permissionCompleter?.complete(allGranted);
-      return allGranted;
+      // Check for critical permissions
+      bool hasStorageAccess = Platform.isAndroid 
+          ? statuses[Permission.storage] == PermissionStatus.granted
+          : true; // iOS doesn't need explicit storage permission
+      
+      _permissionCompleter?.complete(hasStorageAccess);
+      return hasStorageAccess;
     } catch (e) {
       debugPrint('Error requesting permissions: $e');
       _permissionCompleter?.complete(false);

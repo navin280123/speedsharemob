@@ -62,32 +62,34 @@ class _FileSenderScreenState extends State<FileSenderScreen>
 
     _filteredReceivers = availableReceivers;
   }
+
   Future<void> _checkPermissionsAndStart() async {
-  bool hasPermissions = await PermissionManager().requestAppPermissions();
-  
-  if (hasPermissions) {
-    // In FileSenderScreen
-    startScanning();
-    
-    // OR in ReceiveScreen
-    // startReceiving();
-  } else {
-    // Show a message that permissions are required
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Required permissions not granted. Some features may not work.'),
-          action: SnackBarAction(
-            label: 'Settings',
-            onPressed: () => openAppSettings(),
+    bool hasPermissions = await PermissionManager().requestAppPermissions();
+
+    if (hasPermissions) {
+      // In FileSenderScreen
+      startScanning();
+
+      // OR in ReceiveScreen
+      // startReceiving();
+    } else {
+      // Show a message that permissions are required
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Required permissions not granted. Some features may not work.',
+            ),
+            action: SnackBarAction(
+              label: 'Settings',
+              onPressed: () => openAppSettings(),
+            ),
+            duration: const Duration(seconds: 5),
           ),
-          duration: const Duration(seconds: 5),
-        ),
-      );
+        );
+      }
     }
   }
-}
-  
 
   void startScanning() {
     if (!mounted) return;
@@ -112,10 +114,28 @@ class _FileSenderScreenState extends State<FileSenderScreen>
         _filteredReceivers = [];
       });
 
-      _discoverySocket = await RawDatagramSocket.bind(
-        InternetAddress.anyIPv4,
-        0,
-      );
+      // Check for storage and location permissions first
+      await Permission.storage.request();
+      await Permission.location.request();
+
+      // Use only reuseAddress (without reusePort which is unsupported)
+      try {
+        _discoverySocket = await RawDatagramSocket.bind(
+          InternetAddress.anyIPv4,
+          0,
+          reuseAddress: true, // Only use reuseAddress
+        );
+      } catch (e) {
+        print('Socket binding error: $e');
+        // Try binding without any options
+        _discoverySocket = await RawDatagramSocket.bind(
+          InternetAddress.anyIPv4,
+          0,
+        );
+      }
+
+      // Set broadcast option which is important for discovery
+      _discoverySocket!.broadcastEnabled = true;
 
       _discoverySocket!.listen((event) {
         if (event == RawSocketEvent.read) {
@@ -147,39 +167,63 @@ class _FileSenderScreenState extends State<FileSenderScreen>
         }
       });
 
-      final interfaces = await NetworkInterface.list();
-      for (var interface in interfaces) {
-        if (interface.name.contains('lo')) continue;
-        for (var addr in interface.addresses) {
-          if (addr.type == InternetAddressType.IPv4) {
-            final parts = addr.address.split('.');
-            if (parts.length == 4) {
-              final subnet = parts.sublist(0, 3).join('.');
-              final message = utf8.encode('SPEEDSHARE_DISCOVERY');
-              try {
-                final gatewayAddress = InternetAddress('$subnet.1');
-                _discoverySocket!.send(message, gatewayAddress, 8081);
-                final ownAddress = InternetAddress(addr.address);
-                _discoverySocket!.send(message, ownAddress, 8081);
-                for (int i = 2; i < 10; i++) {
+      // Send discovery messages with error handling
+      try {
+        final interfaces = await NetworkInterface.list();
+        for (var interface in interfaces) {
+          if (interface.name.contains('lo')) continue;
+          for (var addr in interface.addresses) {
+            if (addr.type == InternetAddressType.IPv4) {
+              final parts = addr.address.split('.');
+              if (parts.length == 4) {
+                final subnet = parts.sublist(0, 3).join('.');
+                final message = utf8.encode('SPEEDSHARE_DISCOVERY');
+
+                // Try sending to broadcast address first - most important
+                try {
                   _discoverySocket!.send(
                     message,
-                    InternetAddress('$subnet.$i'),
+                    InternetAddress('$subnet.255'),
                     8081,
                   );
+                } catch (e) {
+                  print('Failed to send to broadcast: $e');
                 }
-                _discoverySocket!.send(
-                  message,
-                  InternetAddress('$subnet.255'),
-                  8081,
-                );
-              } catch (e) {
-                print('Failed to send discovery packet: $e');
+
+                // Try own address
+                try {
+                  final ownAddress = InternetAddress(addr.address);
+                  _discoverySocket!.send(message, ownAddress, 8081);
+                } catch (e) {
+                  print('Failed to send to own address: $e');
+                }
+
+                // Try gateway and a few specific IPs
+                try {
+                  _discoverySocket!.send(
+                    message,
+                    InternetAddress('$subnet.1'),
+                    8081,
+                  );
+                  for (int i = 2; i < 5; i++) {
+                    _discoverySocket!.send(
+                      message,
+                      InternetAddress('$subnet.$i'),
+                      8081,
+                    );
+                  }
+                } catch (e) {
+                  print('Failed to send to specific IPs: $e');
+                }
               }
             }
           }
         }
+      } catch (e) {
+        print('Network interface error: $e');
       }
+
+      // Set a timeout to check results
       Timer(Duration(seconds: 2), () {
         if (mounted) {
           if (availableReceivers.isEmpty) {
