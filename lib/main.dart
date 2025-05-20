@@ -10,13 +10,13 @@ void main() async {
   // Load settings
   final prefs = await SharedPreferences.getInstance();
   final bool darkMode = prefs.getBool('darkMode') ?? false;
-  
+
   runApp(MyApp(darkMode: darkMode));
 }
 
 class MyApp extends StatefulWidget {
   final bool darkMode;
-  
+
   const MyApp({super.key, required this.darkMode});
 
   @override
@@ -25,18 +25,18 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   late bool _darkMode;
-  
+
   @override
   void initState() {
     super.initState();
     _darkMode = widget.darkMode;
-    
+
     // Listen for settings changes
     SharedPreferences.getInstance().then((prefs) {
       prefs.reload();
     });
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -74,7 +74,8 @@ class _MyAppState extends State<MyApp> {
             ),
           ),
         ),
-        scaffoldBackgroundColor: _darkMode ? const Color(0xFF121212) : Colors.grey[50],
+        scaffoldBackgroundColor:
+            _darkMode ? const Color(0xFF121212) : Colors.grey[50],
         appBarTheme: AppBarTheme(
           backgroundColor: _darkMode ? const Color(0xFF1E1E1E) : Colors.white,
           elevation: 0,
@@ -143,9 +144,7 @@ class _MyAppState extends State<MyApp> {
             fontWeight: FontWeight.bold,
             fontFamily: 'Poppins',
           ),
-          iconTheme: IconThemeData(
-            color: Colors.white,
-          ),
+          iconTheme: IconThemeData(color: Colors.white),
         ),
         bottomNavigationBarTheme: BottomNavigationBarThemeData(
           backgroundColor: const Color(0xFF1E1E1E),

@@ -345,30 +345,44 @@ class _ReceiveScreenState extends State<ReceiveScreen>
                 'path': fileForWrite!.path,
                 'date': DateTime.now().toString(),
               });
-              ScaffoldMessenger.of(context).showSnackBar(
+                // Show a responsive SnackBar for file received
+                ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Row(
+                  content: LayoutBuilder(
+                  builder: (context, constraints) {
+                    bool isWide = constraints.maxWidth > 400;
+                    return Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
                     children: [
                       Icon(Icons.check_circle_rounded, color: Colors.white),
                       SizedBox(width: 10),
-                      Text('File received: $expectedFileName'),
+                      Expanded(
+                      child: Text(
+                        'File received: $expectedFileName',
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: isWide ? 2 : 1,
+                      ),
+                      ),
                     ],
+                    );
+                  },
                   ),
                   backgroundColor: Color(0xFF2AB673),
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(10),
                   ),
                   margin: EdgeInsets.all(20),
                   action: SnackBarAction(
-                    label: 'Open',
-                    textColor: Colors.white,
-                    onPressed: () {
-                      _openFile(fileForWrite!.path);
-                    },
+                  label: 'Open',
+                  textColor: Colors.white,
+                  onPressed: () {
+                    _openFile(fileForWrite!.path);
+                  },
                   ),
+                  duration: Duration(seconds: 6),
                 ),
-              );
+                );
               client.write('TRANSFER_COMPLETE');
               receivedFile = null;
               receivingMetadata = true;
