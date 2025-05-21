@@ -45,6 +45,8 @@ dependencies:
   permission_handler: ^12.0.0+1
   network_info_plus: ^6.1.4  # For network discovery functionality
   connectivity_plus: ^6.1.4 
+  flutter_launcher_icons: ^0.14.3
+  flutter_native_splash: ^2.4.6
 
 dev_dependencies:
   flutter_test:
@@ -57,8 +59,36 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
 
-# For information on the generic Dart part of this file, see the
-# following page: https://dart.dev/tools/pub/pubspec
+# App Icon Configuration
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon.png"
+  min_sdk_android: 21
+  
+
+# Splash Screen Configuration
+flutter_native_splash:
+  color: "#3F51B5"
+  image: assets/icon.png
+  
+  # For dark mode (optional)
+  color_dark: "#121212"
+  
+  image_dark: assets/icon.png
+  
+  # Android 12 settings
+  android_12:
+    icon_background_color: "#3F51B5"
+    image: assets/icon.png
+    icon_background_color_dark: "#121212"
+    image_dark: assets/icon.png
+
+  
+  # Platform-specific customization
+  android: true
+  ios: true
+  web: true
 
 # The following section is specific to Flutter packages.
 flutter:
@@ -69,7 +99,8 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  # assets:
+  assets:
+    - assets/
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
 

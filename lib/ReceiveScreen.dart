@@ -67,7 +67,7 @@ class _ReceiveScreenState extends State<ReceiveScreen>
     // startScanning();
     
     // OR in ReceiveScreen
-    startReceiving();
+    // startReceiving();
   } else {
     // Show a message that permissions are required
     if (mounted) {
