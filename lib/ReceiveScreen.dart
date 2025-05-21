@@ -84,22 +84,36 @@ class _ReceiveScreenState extends State<ReceiveScreen>
     }
   }
 }
-  void _getDownloadsDirectory() async {
-    try {
-      Directory? downloadsDirectory = await getDownloadsDirectory();
-      String speedsharePath = '${downloadsDirectory!.path}/speedshare';
-      Directory speedshareDirectory = Directory(speedsharePath);
-      if (!await speedshareDirectory.exists()) {
-        await speedshareDirectory.create(recursive: true);
-      }
-      setState(() {
-        downloadDirectoryPath = speedsharePath;
-      });
-      _loadReceivedFiles(speedshareDirectory);
-    } catch (e) {
-      print('Error getting downloads directory: $e');
+ void _getDownloadsDirectory() async {
+  try {
+    // Get the public Downloads directory instead of app-specific storage
+    Directory downloadDirectory;
+    
+    if (Platform.isAndroid) {
+      // For Android, use the public Downloads folder
+      downloadDirectory = Directory('/storage/emulated/0/Download');
+      
+      // Alternative method using Environment.DIRECTORY_DOWNLOADS if needed:
+      // downloadDirectory = Directory(await AndroidPathProvider.downloadsPath);
+      // (requires android_path_provider package)
+    } else {
+      // For iOS and other platforms, fallback to the default approach
+      downloadDirectory = (await getApplicationDocumentsDirectory());
     }
+    
+    String speedsharePath = '${downloadDirectory.path}/speedshare';
+    Directory speedshareDirectory = Directory(speedsharePath);
+    if (!await speedshareDirectory.exists()) {
+      await speedshareDirectory.create(recursive: true);
+    }
+    setState(() {
+      downloadDirectoryPath = speedsharePath;
+    });
+    _loadReceivedFiles(speedshareDirectory);
+  } catch (e) {
+    print('Error getting downloads directory: $e');
   }
+}
 
   void _loadReceivedFiles(Directory directory) async {
     try {
