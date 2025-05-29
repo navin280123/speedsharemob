@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:speedsharemob/FileSenderScreen.dart';
 import 'package:speedsharemob/ReceiveScreen.dart';
 import 'package:speedsharemob/SettingsScreen.dart';
+import 'package:speedsharemob/SyncScreen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -35,6 +36,11 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
       'title': 'Receive',
       'icon': Icons.download_rounded,
       'screen': ReceiveScreen(),
+    },
+    {
+      'title': 'Sync',
+      'icon': Icons.sync_rounded,
+      'screen': SyncScreen(),
     },
     {
       'title': 'Settings',
@@ -90,7 +96,8 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         children: [
           _buildHomeScreen(), // Index 0: Home Screen
           FileSenderScreen(),  // Index 1: Send
-          ReceiveScreen(),     // Index 2: Receive
+          ReceiveScreen(), 
+          SyncScreen(),    // Index 2: Receive
           SettingsScreen(),    // Index 3: Settings
         ],
       ),
