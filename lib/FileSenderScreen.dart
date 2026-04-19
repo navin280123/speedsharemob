@@ -34,7 +34,6 @@ class _FileSenderScreenState extends State<FileSenderScreen>
 
   List<ReceiverDevice> availableReceivers = [];
   int _selectedReceiverIndex = -1;
-  bool _isDiscovering = false;
   Timer? _discoveryTimer;
   RawDatagramSocket? _discoverySocket;
 
@@ -109,14 +108,13 @@ class _FileSenderScreenState extends State<FileSenderScreen>
   void discoverWithUDP() async {
     try {
       setState(() {
-        _isDiscovering = true;
+        isScanning = true;
         availableReceivers.clear();
         _filteredReceivers = [];
       });
 
-      // Check for storage and location permissions first
-      await Permission.storage.request();
-      await Permission.location.request();
+      // Permissions are already handled by PermissionManager at app startup.
+      // Do NOT request them again here — it causes duplicate dialogs.
 
       // Use only reuseAddress (without reusePort which is unsupported)
       try {
@@ -230,7 +228,6 @@ class _FileSenderScreenState extends State<FileSenderScreen>
             checkDirectTCPConnections();
           } else {
             setState(() {
-              _isDiscovering = false;
               isScanning = false;
               _filteredReceivers = _filterReceivers();
             });
@@ -269,7 +266,6 @@ class _FileSenderScreenState extends State<FileSenderScreen>
     } finally {
       if (mounted) {
         setState(() {
-          _isDiscovering = false;
           isScanning = false;
           _filteredReceivers = _filterReceivers();
         });
@@ -278,24 +274,23 @@ class _FileSenderScreenState extends State<FileSenderScreen>
   }
 
   Future<void> checkReceiver(String ip) async {
+    Socket? sock;
     try {
-      final socket = await Socket.connect(
+      sock = await Socket.connect(
         ip,
         8080,
-        timeout: Duration(milliseconds: 500),
-      ).catchError((e) => null);
-
-      if (socket == null) return;
+        timeout: const Duration(milliseconds: 500),
+      );
 
       final completer = Completer<String?>();
 
-      Timer(Duration(seconds: 1), () {
+      Timer(const Duration(seconds: 1), () {
         if (!completer.isCompleted) {
           completer.complete(null);
         }
       });
 
-      socket.listen((data) {
+      sock.listen((data) {
         final message = String.fromCharCodes(data);
         if (message.startsWith('DEVICE_NAME:')) {
           final deviceName = message.replaceFirst('DEVICE_NAME:', '');
@@ -306,7 +301,7 @@ class _FileSenderScreenState extends State<FileSenderScreen>
       });
 
       final deviceName = await completer.future;
-      socket.destroy();
+      sock.destroy();
 
       if (deviceName != null && deviceName.isNotEmpty && mounted) {
         setState(() {
@@ -316,7 +311,9 @@ class _FileSenderScreenState extends State<FileSenderScreen>
           }
         });
       }
-    } catch (e) {}
+    } catch (_) {
+      sock?.destroy();
+    }
   }
 
   void connectToReceiver(String ip, [String? name]) async {

@@ -51,7 +51,7 @@ class _MyAppState extends State<MyApp> {
         ),
         fontFamily: 'Poppins',
         useMaterial3: true,
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           elevation: 2,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -110,7 +110,7 @@ class _MyAppState extends State<MyApp> {
         ),
         fontFamily: 'Poppins',
         useMaterial3: true,
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           elevation: 2,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),

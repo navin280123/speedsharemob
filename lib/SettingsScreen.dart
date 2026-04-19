@@ -37,11 +37,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     
     try {
       final prefs = await SharedPreferences.getInstance();
-      
-      // Get download path
+
+      // getDownloadsDirectory() returns null on iOS — use a safe fallback
       Directory? downloadsDirectory = await getDownloadsDirectory();
-      String speedsharePath = '${downloadsDirectory!.path}/speedshare';
-      
+      String speedsharePath;
+      if (downloadsDirectory != null) {
+        speedsharePath = '${downloadsDirectory.path}/speedshare';
+      } else {
+        final appDir = await getApplicationDocumentsDirectory();
+        speedsharePath = '${appDir.path}/speedshare';
+      }
+
       setState(() {
         deviceName = prefs.getString('deviceName') ?? Platform.localHostname;
         darkMode = prefs.getBool('darkMode') ?? false;
@@ -758,10 +764,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
-                  // Current date
+
+                  // Current date (live)
                   Text(
-                    'Current Date: 2025-05-20 17:18:17',
+                    'Build: v1.0.0',
                     style: TextStyle(
                       fontSize: 12,
                       color: Theme.of(context).brightness == Brightness.dark
@@ -770,7 +776,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                   Text(
-                    'User: navin280123',
+                    'Device: $deviceName',
                     style: TextStyle(
                       fontSize: 12,
                       color: Theme.of(context).brightness == Brightness.dark

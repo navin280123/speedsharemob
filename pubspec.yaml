@@ -45,6 +45,9 @@ dependencies:
   permission_handler: ^12.0.0+1
   network_info_plus: ^6.1.4  # For network discovery functionality
   connectivity_plus: ^6.1.4 
+  http: ^1.4.0
+  path: ^1.9.0
+  device_info_plus: ^10.0.0
   flutter_launcher_icons: ^0.14.3
   flutter_native_splash: ^2.4.6
 
@@ -89,6 +92,10 @@ flutter_native_splash:
   android: true
   ios: true
   web: true
+  # Desktop platforms (folders created via flutter create --platforms=windows,macos,linux)
+  # windows: true   # flutter_native_splash does not support Windows splash
+  # macos: true     # flutter_native_splash does not support macOS splash
+  # linux: true     # flutter_native_splash does not support Linux splash
 
 # The following section is specific to Flutter packages.
 flutter:

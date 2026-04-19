@@ -47,5 +47,24 @@
 		<true/>
 		<key>UIStatusBarHidden</key>
 		<false/>
+
+		<!-- Required permission usage descriptions — iOS will CRASH without these -->
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>SpeedShare needs access to your photo library to share image and video files.</string>
+
+		<key>NSPhotoLibraryAddUsageDescription</key>
+		<string>SpeedShare needs permission to save received images to your photo library.</string>
+
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>SpeedShare needs location access to discover nearby devices on your Wi-Fi network.</string>
+
+		<!-- Required for iOS 14+ local network socket access -->
+		<key>NSLocalNetworkUsageDescription</key>
+		<string>SpeedShare uses the local network to discover and connect to other devices for file sharing. No data is sent to external servers.</string>
+
+		<key>NSBonjourServices</key>
+		<array>
+			<string>_speedshare._tcp</string>
+		</array>
 	</dict>
 </plist>

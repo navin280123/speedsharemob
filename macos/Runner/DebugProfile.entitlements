@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Sandbox enabled (required for Mac App Store; disable for direct distribution) -->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+
+	<!-- JIT required for Flutter debug/profile mode -->
+	<key>com.apple.security.cs.allow-jit</key>
+	<true/>
+
+	<!-- Network: act as a TCP/UDP server (ReceiveScreen binds port 8080/8081) -->
+	<key>com.apple.security.network.server</key>
+	<true/>
+
+	<!-- Network: make outbound TCP/UDP connections (FileSenderScreen connects to receivers) -->
+	<key>com.apple.security.network.client</key>
+	<true/>
+
+	<!-- File access: read/write user Downloads folder (where received files are saved) -->
+	<key>com.apple.security.files.downloads.read-write</key>
+	<true/>
+
+	<!-- File access: read user-selected files (file picker) -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+</dict>
+</plist>
+

@@ -25,27 +25,22 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     {
       'title': 'Home',
       'icon': Icons.home_rounded,
-      'screen': null, // This will be handled in the build method
     },
     {
       'title': 'Send',
       'icon': Icons.send_rounded,
-      'screen': FileSenderScreen(),
     },
     {
       'title': 'Receive',
       'icon': Icons.download_rounded,
-      'screen': ReceiveScreen(),
     },
     {
       'title': 'Sync',
       'icon': Icons.sync_rounded,
-      'screen': SyncScreen(),
     },
     {
       'title': 'Settings',
       'icon': Icons.settings_rounded,
-      'screen': SettingsScreen(),
     },
   ];
 

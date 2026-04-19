@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -37,9 +36,6 @@ class _ReceiveScreenState extends State<ReceiveScreen>
   late AnimationController _animationController;
   late Animation<double> _pulseAnimation;
 
-  // Fixed date/time and user login
-  final String currentDateTime = "2025-05-20 17:13:21";
-  final String userLogin = "navin280123";
 
   @override
   void initState() {
@@ -86,21 +82,20 @@ class _ReceiveScreenState extends State<ReceiveScreen>
 }
  void _getDownloadsDirectory() async {
   try {
-    // Get the public Downloads directory instead of app-specific storage
     Directory downloadDirectory;
-    
+
     if (Platform.isAndroid) {
       // For Android, use the public Downloads folder
       downloadDirectory = Directory('/storage/emulated/0/Download');
-      
-      // Alternative method using Environment.DIRECTORY_DOWNLOADS if needed:
-      // downloadDirectory = Directory(await AndroidPathProvider.downloadsPath);
-      // (requires android_path_provider package)
+    } else if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+      // For desktop platforms, use the system Downloads directory
+      final downloadsDir = await getDownloadsDirectory();
+      downloadDirectory = downloadsDir ?? await getApplicationDocumentsDirectory();
     } else {
-      // For iOS and other platforms, fallback to the default approach
-      downloadDirectory = (await getApplicationDocumentsDirectory());
+      // For iOS, fallback to app documents directory (sandboxed)
+      downloadDirectory = await getApplicationDocumentsDirectory();
     }
-    
+
     String speedsharePath = '${downloadDirectory.path}/speedshare';
     Directory speedshareDirectory = Directory(speedsharePath);
     if (!await speedshareDirectory.exists()) {
@@ -112,6 +107,19 @@ class _ReceiveScreenState extends State<ReceiveScreen>
     _loadReceivedFiles(speedshareDirectory);
   } catch (e) {
     print('Error getting downloads directory: $e');
+    // Fallback to app documents directory on any error
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final speedsharePath = '${appDir.path}/speedshare';
+      final speedshareDirectory = Directory(speedsharePath);
+      if (!await speedshareDirectory.exists()) {
+        await speedshareDirectory.create(recursive: true);
+      }
+      setState(() {
+        downloadDirectoryPath = speedsharePath;
+      });
+      _loadReceivedFiles(speedshareDirectory);
+    } catch (_) {}
   }
 }
 
@@ -165,21 +173,6 @@ class _ReceiveScreenState extends State<ReceiveScreen>
       ipAddress = 'Not available';
       isLoadingIp = false;
     });
-  }
-
-  Future<void> _requestPermissions() async {
-    if (Platform.isAndroid) {
-      final permissions = <Permission>[
-        Permission.storage,
-        Permission.location,
-        // Add Permission.nearbyWifiDevices if available in your permission_handler version
-        if (Permission.values.contains(Permission.nearbyWifiDevices))
-          Permission.nearbyWifiDevices,
-      ];
-      await permissions.request();
-    } else if (Platform.isIOS) {
-      await [Permission.photos, Permission.mediaLibrary].request();
-    }
   }
 
   void _getComputerName() async {

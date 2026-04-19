@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
@@ -42,10 +41,6 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
   // Animation
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
-  
-  // Current date/time and user
-  final String currentDateTime = "2025-05-29 10:45:07";
-  final String userLogin = "navin280123";
   
   @override
   void initState() {
@@ -131,12 +126,22 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
         final List<String> defaultPaths = [];
         
         try {
-          // Add Downloads directory
+          // Add platform-appropriate default directories
           if (Platform.isAndroid) {
             defaultPaths.add('/storage/emulated/0/Download');
             defaultPaths.add('/storage/emulated/0/DCIM/Camera');
             defaultPaths.add('/storage/emulated/0/Pictures');
+          } else if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+            // Use system Downloads directory for desktop
+            final downloadsDir = await getDownloadsDirectory();
+            if (downloadsDir != null) {
+              defaultPaths.add(downloadsDir.path);
+            } else {
+              final documentsDir = await getApplicationDocumentsDirectory();
+              defaultPaths.add(documentsDir.path);
+            }
           } else {
+            // iOS — app documents directory (sandboxed)
             final documentsDir = await getApplicationDocumentsDirectory();
             defaultPaths.add(documentsDir.path);
           }
@@ -235,6 +240,9 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
   }
 
   Future<bool> _checkStoragePermissions() async {
+    // Desktop platforms (Windows, macOS, Linux) do not need runtime storage permissions
+    if (!Platform.isAndroid && !Platform.isIOS) return true;
+
     if (Platform.isAndroid) {
       final permissions = [
         Permission.storage,
@@ -242,22 +250,23 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
         Permission.videos,
         Permission.audio,
       ];
-      
+
       // Request Android 11+ permissions if available
       if (await Permission.manageExternalStorage.status == PermissionStatus.denied) {
         permissions.add(Permission.manageExternalStorage);
       }
-      
+
       final results = await permissions.request();
       return results.values.any((status) => status == PermissionStatus.granted);
-    } else {
-      // iOS permissions
+    } else if (Platform.isIOS) {
       final results = await [
         Permission.photos,
         Permission.mediaLibrary,
       ].request();
       return results.values.any((status) => status == PermissionStatus.granted);
     }
+
+    return true;
   }
 
   Future<void> _stopStorageSharing() async {
@@ -305,7 +314,7 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _handleFileListRequest(HttpRequest request) async {
-    final path = request.uri.queryParameters['path'] ?? '/';
+    final _ = request.uri.queryParameters['path'] ?? '/'; // reserved for sub-directory browsing
     final files = <Map<String, dynamic>>[];
     
     try {
@@ -420,11 +429,16 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
     if (_selectedDevice == null) return;
     
     try {
-      // Get Downloads directory for mobile
+      // Get Downloads directory for the active platform
       Directory downloadDir;
       if (Platform.isAndroid) {
         downloadDir = Directory('/storage/emulated/0/Download/speedshare');
+      } else if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+        final downloadsDir = await getDownloadsDirectory();
+        final base = downloadsDir ?? await getApplicationDocumentsDirectory();
+        downloadDir = Directory('${base.path}/speedshare');
       } else {
+        // iOS
         final appDir = await getApplicationDocumentsDirectory();
         downloadDir = Directory('${appDir.path}/speedshare');
       }

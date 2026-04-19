@@ -1,0 +1,101 @@
+﻿Analyzing lib...                                                
+
+   info - The file name 'FileSenderScreen.dart' isn't a lower_case_with_underscores identifier - lib\FileSenderScreen.dart:1:1 - file_names
+   info - Constructors for public widgets should have a named 'key' parameter - lib\FileSenderScreen.dart:12:7 - use_key_in_widget_constructors
+   info - Invalid use of a private type in a public API - lib\FileSenderScreen.dart:14:3 - library_private_types_in_public_api
+   info - Don't invoke 'print' in production code - lib\FileSenderScreen.dart:127:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\FileSenderScreen.dart:188:19 - avoid_print
+   info - Don't invoke 'print' in production code - lib\FileSenderScreen.dart:196:19 - avoid_print
+   info - Don't invoke 'print' in production code - lib\FileSenderScreen.dart:214:19 - avoid_print
+   info - Don't invoke 'print' in production code - lib\FileSenderScreen.dart:221:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\FileSenderScreen.dart:238:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\FileSenderScreen.dart:265:7 - avoid_print
+   info - Don't use 'BuildContext's across async gaps - lib\FileSenderScreen.dart:385:28 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\FileSenderScreen.dart:475:28 - use_build_context_synchronously
+   info - Statements in an if should be enclosed in a block - lib\FileSenderScreen.dart:568:7 - curly_braces_in_flow_control_structures
+   info - Don't use 'BuildContext's across async gaps - lib\FileSenderScreen.dart:616:28 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\FileSenderScreen.dart:704:28 - use_build_context_synchronously
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\FileSenderScreen.dart:906:58 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\FileSenderScreen.dart:983:50 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\FileSenderScreen.dart:1034:52 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\FileSenderScreen.dart:1118:61 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\FileSenderScreen.dart:1188:50 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\FileSenderScreen.dart:1244:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\FileSenderScreen.dart:1338:61 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\FileSenderScreen.dart:1369:49 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\FileSenderScreen.dart:1559:50 - deprecated_member_use
+   info - Unnecessary braces in a string interpolation - lib\FileSenderScreen.dart:1583:30 - unnecessary_brace_in_string_interps
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\FileSenderScreen.dart:1668:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\FileSenderScreen.dart:1685:35 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\FileSenderScreen.dart:1724:52 - deprecated_member_use
+   info - The file name 'MainScreen.dart' isn't a lower_case_with_underscores identifier - lib\MainScreen.dart:1:1 - file_names
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\MainScreen.dart:137:58 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\MainScreen.dart:214:51 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\MainScreen.dart:377:44 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\MainScreen.dart:424:32 - deprecated_member_use
+   info - The file name 'PermissionManager.dart' isn't a lower_case_with_underscores identifier - lib\PermissionManager.dart:1:1 - file_names
+   info - The file name 'ReceiveScreen.dart' isn't a lower_case_with_underscores identifier - lib\ReceiveScreen.dart:1:1 - file_names
+   info - The import of 'dart:typed_data' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/services.dart' - lib\ReceiveScreen.dart:3:8 - unnecessary_import
+   info - Constructors for public widgets should have a named 'key' parameter - lib\ReceiveScreen.dart:14:7 - use_key_in_widget_constructors
+   info - Invalid use of a private type in a public API - lib\ReceiveScreen.dart:16:3 - library_private_types_in_public_api
+   info - Don't invoke 'print' in production code - lib\ReceiveScreen.dart:113:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\ReceiveScreen.dart:151:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\ReceiveScreen.dart:174:7 - avoid_print
+   info - Don't use 'BuildContext's across async gaps - lib\ReceiveScreen.dart:227:28 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\ReceiveScreen.dart:413:28 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\ReceiveScreen.dart:470:30 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\ReceiveScreen.dart:488:28 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\ReceiveScreen.dart:517:30 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\ReceiveScreen.dart:535:28 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\ReceiveScreen.dart:556:26 - use_build_context_synchronously
+   info - Statements in an if should be enclosed in a block - lib\ReceiveScreen.dart:580:7 - curly_braces_in_flow_control_structures
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ReceiveScreen.dart:651:60 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ReceiveScreen.dart:823:52 - deprecated_member_use
+   info - Unnecessary use of string interpolation - lib\ReceiveScreen.dart:1043:19 - unnecessary_string_interpolations
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ReceiveScreen.dart:1064:58 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ReceiveScreen.dart:1123:26 - deprecated_member_use
+   info - The file name 'SettingsScreen.dart' isn't a lower_case_with_underscores identifier - lib\SettingsScreen.dart:1:1 - file_names
+   info - Constructors for public widgets should have a named 'key' parameter - lib\SettingsScreen.dart:8:7 - use_key_in_widget_constructors
+   info - Invalid use of a private type in a public API - lib\SettingsScreen.dart:10:3 - library_private_types_in_public_api
+   info - Don't invoke 'print' in production code - lib\SettingsScreen.dart:62:7 - avoid_print
+   info - Don't use 'BuildContext's across async gaps - lib\SettingsScreen.dart:81:28 - use_build_context_synchronously
+   info - Don't invoke 'print' in production code - lib\SettingsScreen.dart:97:7 - avoid_print
+   info - Don't use 'BuildContext's across async gaps - lib\SettingsScreen.dart:98:28 - use_build_context_synchronously
+   info - Don't invoke 'print' in production code - lib\SettingsScreen.dart:126:7 - avoid_print
+   info - Don't use 'BuildContext's across async gaps - lib\SettingsScreen.dart:160:36 - use_build_context_synchronously
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\SettingsScreen.dart:350:52 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\SettingsScreen.dart:428:52 - deprecated_member_use
+   info - 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre - lib\SettingsScreen.dart:505:11 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\SettingsScreen.dart:632:40 - deprecated_member_use
+   info - The 'child' argument should be last in widget constructor invocations - lib\SettingsScreen.dart:648:23 - sort_child_properties_last
+   info - The local variable '_showInfoDialog' starts with an underscore - lib\SettingsScreen.dart:665:10 - no_leading_underscores_for_local_identifiers
+   info - The local variable '_launchUrl' starts with an underscore - lib\SettingsScreen.dart:682:10 - no_leading_underscores_for_local_identifiers
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\SettingsScreen.dart:700:52 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\SettingsScreen.dart:736:58 - deprecated_member_use
+   info - The file name 'SyncScreen.dart' isn't a lower_case_with_underscores identifier - lib\SyncScreen.dart:1:1 - file_names
+   info - Constructors for public widgets should have a named 'key' parameter - lib\SyncScreen.dart:16:7 - use_key_in_widget_constructors
+   info - Invalid use of a private type in a public API - lib\SyncScreen.dart:18:3 - library_private_types_in_public_api
+   info - The private field _availableDevices could be 'final' - lib\SyncScreen.dart:30:20 - prefer_final_fields
+   info - The private field _downloadQueue could be 'final' - lib\SyncScreen.dart:39:22 - prefer_final_fields
+   info - Don't invoke 'print' in production code - lib\SyncScreen.dart:94:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\SyncScreen.dart:119:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\SyncScreen.dart:153:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\SyncScreen.dart:165:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\SyncScreen.dart:174:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\SyncScreen.dart:202:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\SyncScreen.dart:314:7 - avoid_print
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\SyncScreen.dart:591:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\SyncScreen.dart:592:41 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\SyncScreen.dart:652:50 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\SyncScreen.dart:737:52 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\SyncScreen.dart:850:64 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\SyncScreen.dart:1060:63 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\SyncScreen.dart:1061:68 - deprecated_member_use
+
+flutter : 91 issues found. (ran in 1.8s)
+At line:1 char:1
++ flutter analyze lib/ --no-fatal-infos 2>&1 | Out-File -FilePath "anal ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (91 issues found. (ran in 1.8s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

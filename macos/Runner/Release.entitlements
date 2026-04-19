@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Sandbox enabled -->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+
+	<!-- Network: TCP/UDP server (ReceiveScreen binds ports 8080/8081/8082/8083) -->
+	<key>com.apple.security.network.server</key>
+	<true/>
+
+	<!-- Network: outbound TCP/UDP (FileSenderScreen & SyncScreen connect out) -->
+	<key>com.apple.security.network.client</key>
+	<true/>
+
+	<!-- File access: read/write user Downloads (received files saved here) -->
+	<key>com.apple.security.files.downloads.read-write</key>
+	<true/>
+
+	<!-- File access: read/write user-selected files via file picker -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+</dict>
+</plist>
+
