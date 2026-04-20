@@ -599,11 +599,14 @@ class _ReceiveScreenState extends State<ReceiveScreen>
         backgroundColor: Colors.transparent,
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               // Status section with IP and controls
               _buildStatusSection(),
 
@@ -618,6 +621,8 @@ class _ReceiveScreenState extends State<ReceiveScreen>
               Expanded(child: _buildFilesSection()),
             ],
           ),
+        ),
+        ),
         ),
       ),
     );

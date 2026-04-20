@@ -179,7 +179,7 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
     _sendSyncAnnouncement();
   }
 
-  void _sendSyncAnnouncement() {
+  void _sendSyncAnnouncement() async {
     if (_syncDiscoverySocket == null || !_isStorageSharing) return;
     
     try {
@@ -193,7 +193,28 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
       });
       
       final data = utf8.encode(announcement);
-      _syncDiscoverySocket!.send(data, InternetAddress('255.255.255.255'), 8083);
+      
+      // Try 255.255.255.255 first
+      try {
+        _syncDiscoverySocket!.send(data, InternetAddress('255.255.255.255'), 8083);
+      } catch (_) {}
+      
+      // Also broadcast to interfaces directly
+      final interfaces = await NetworkInterface.list();
+      for (var interface in interfaces) {
+        if (interface.name.contains('lo')) continue;
+        for (var addr in interface.addresses) {
+          if (addr.type == InternetAddressType.IPv4) {
+            final parts = addr.address.split('.');
+            if (parts.length == 4) {
+              final subnet = parts.sublist(0, 3).join('.');
+              try {
+                _syncDiscoverySocket!.send(data, InternetAddress('$subnet.255'), 8083);
+              } catch (_) {}
+            }
+          }
+        }
+      }
     } catch (e) {
       print('Error sending sync announcement: $e');
     }
@@ -314,30 +335,56 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _handleFileListRequest(HttpRequest request) async {
-    final _ = request.uri.queryParameters['path'] ?? '/'; // reserved for sub-directory browsing
+    final requestedPath = request.uri.queryParameters['path'] ?? '/';
     final files = <Map<String, dynamic>>[];
     
     try {
-      for (final sharedPath in _sharedPaths) {
-        final directory = Directory(sharedPath);
-        
-        if (await directory.exists()) {
-          await for (final entity in directory.list()) {
-            try {
-              final stat = await entity.stat();
-              files.add({
-                'name': p.basename(entity.path),
-                'path': entity.path,
-                'isDirectory': entity is Directory,
-                'size': entity is File ? stat.size : 0,
-                'modified': stat.modified.toIso8601String(),
-                'type': entity is File ? lookupMimeType(entity.path) ?? 'application/octet-stream' : 'directory',
-              });
-            } catch (e) {
-              // Skip files that can't be accessed
-              continue;
+      if (requestedPath == '/') {
+        for (final sharedPath in _sharedPaths) {
+          final directory = Directory(sharedPath);
+          if (await directory.exists()) {
+            await for (final entity in directory.list()) {
+              try {
+                final stat = await entity.stat();
+                files.add({
+                  'name': p.basename(entity.path),
+                  'path': entity.path,
+                  'isDirectory': entity is Directory,
+                  'size': entity is File ? stat.size : 0,
+                  'modified': stat.modified.toIso8601String(),
+                  'type': entity is File ? lookupMimeType(entity.path) ?? 'application/octet-stream' : 'directory',
+                });
+              } catch (e) {
+                // Skip files that can't be accessed
+              }
             }
           }
+        }
+      } else {
+        if (_isPathAllowed(requestedPath)) {
+          final directory = Directory(requestedPath);
+          if (await directory.exists()) {
+            await for (final entity in directory.list()) {
+              try {
+                final stat = await entity.stat();
+                files.add({
+                  'name': p.basename(entity.path),
+                  'path': entity.path,
+                  'isDirectory': entity is Directory,
+                  'size': entity is File ? stat.size : 0,
+                  'modified': stat.modified.toIso8601String(),
+                  'type': entity is File ? lookupMimeType(entity.path) ?? 'application/octet-stream' : 'directory',
+                });
+              } catch (e) {
+                // Skip files that can't be accessed
+              }
+            }
+          }
+        } else {
+          request.response.statusCode = 403;
+          request.response.write('Access denied');
+          await request.response.close();
+          return;
         }
       }
       
@@ -461,12 +508,28 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
         _downloadQueue.add(downloadTask);
       });
       
-      final response = await http.get(
-        Uri.parse('http://${_selectedDevice!.ip}:${_selectedDevice!.port}/api/download?file=${file.path}&code=${_selectedDevice!.accessCode}'),
-      );
+      final request = http.Request('GET', Uri.parse('http://${_selectedDevice!.ip}:${_selectedDevice!.port}/api/download?file=${Uri.encodeComponent(file.path)}&code=${_selectedDevice!.accessCode}'));
+      final response = await http.Client().send(request);
       
       if (response.statusCode == 200) {
-        await File(savePath).writeAsBytes(response.bodyBytes);
+        final totalBytes = response.contentLength ?? file.size;
+        int receivedBytes = 0;
+        
+        final ioFile = File(savePath);
+        final sink = ioFile.openWrite();
+        
+        await response.stream.forEach((chunk) {
+          sink.add(chunk);
+          receivedBytes += chunk.length;
+          final currentProgress = totalBytes > 0 ? (receivedBytes / totalBytes) : 0.0;
+          
+          if (currentProgress - downloadTask.progress > 0.02 || currentProgress >= 1.0) {
+            setState(() {
+              downloadTask.progress = currentProgress;
+            });
+          }
+        });
+        await sink.close();
         
         setState(() {
           downloadTask.progress = 1.0;
@@ -550,10 +613,13 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
         backgroundColor: Colors.transparent,
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
               // Share Storage Card
               _buildShareStorageCard(),
               
@@ -563,6 +629,8 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
               Expanded(child: _buildAccessStorageCard()),
             ],
           ),
+        ),
+        ),
         ),
       ),
     );

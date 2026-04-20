@@ -863,8 +863,11 @@ class _FileSenderScreenState extends State<FileSenderScreen>
         ),
       ),
       body: SafeArea(
-        child: Column(
-          children: [
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: Column(
+              children: [
             // Step indicator
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -883,6 +886,8 @@ class _FileSenderScreenState extends State<FileSenderScreen>
             // Main content area
             Expanded(child: _buildCurrentStepContent()),
           ],
+        ),
+        ),
         ),
       ),
     );

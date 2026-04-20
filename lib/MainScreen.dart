@@ -85,28 +85,78 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
+    final body = IndexedStack(
+      index: _selectedIndex,
+      children: [
+        _buildHomeScreen(), // Index 0: Home Screen
+        FileSenderScreen(),  // Index 1: Send
+        ReceiveScreen(),     // Index 2: Receive
+        SyncScreen(),        // Index 3: Sync
+        SettingsScreen(),    // Index 4: Settings
+      ],
+    );
+
     return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: [
-          _buildHomeScreen(), // Index 0: Home Screen
-          FileSenderScreen(),  // Index 1: Send
-          ReceiveScreen(), 
-          SyncScreen(),    // Index 2: Receive
-          SettingsScreen(),    // Index 3: Settings
-        ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth >= 600) {
+            // Desktop / Tablet layout
+            return Row(
+              children: [
+                NavigationRail(
+                  selectedIndex: _selectedIndex,
+                  onDestinationSelected: (index) {
+                    setState(() {
+                      _selectedIndex = index;
+                    });
+                  },
+                  labelType: NavigationRailLabelType.all,
+                  destinations: _navigationOptions.map((option) => NavigationRailDestination(
+                    icon: Icon(option['icon']),
+                    label: Text(option['title']),
+                  )).toList(),
+                  backgroundColor: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
+                  selectedIconTheme: IconThemeData(
+                    color: Theme.of(context).bottomNavigationBarTheme.selectedItemColor,
+                  ),
+                  unselectedIconTheme: IconThemeData(
+                    color: Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
+                  ),
+                  selectedLabelTextStyle: TextStyle(
+                    color: Theme.of(context).bottomNavigationBarTheme.selectedItemColor,
+                  ),
+                  unselectedLabelTextStyle: TextStyle(
+                    color: Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
+                  ),
+                ),
+                VerticalDivider(thickness: 1, width: 1, color: Colors.grey.withOpacity(0.2)),
+                Expanded(child: body),
+              ],
+            );
+          } else {
+            // Mobile layout
+            return body;
+          }
         },
-        items: _navigationOptions.map((option) => BottomNavigationBarItem(
-          icon: Icon(option['icon']),
-          label: option['title'],
-        )).toList(),
+      ),
+      bottomNavigationBar: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth >= 600) {
+            return const SizedBox.shrink(); // Hide on desktop
+          }
+          return BottomNavigationBar(
+            currentIndex: _selectedIndex,
+            onTap: (index) {
+              setState(() {
+                _selectedIndex = index;
+              });
+            },
+            items: _navigationOptions.map((option) => BottomNavigationBarItem(
+              icon: Icon(option['icon']),
+              label: option['title'],
+            )).toList(),
+          );
+        },
       ),
     );
   }
@@ -115,11 +165,14 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     return FadeTransition(
       opacity: _fadeAnimation,
       child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               // Header
               Row(
                 children: [
@@ -362,6 +415,8 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
               ),
             ],
           ),
+        ),
+        ),
         ),
       ),
     );
