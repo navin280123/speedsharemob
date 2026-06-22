@@ -35,7 +35,8 @@
         android:label="SpeedShare"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"
-        android:requestLegacyExternalStorage="true">
+        android:requestLegacyExternalStorage="true"
+        android:usesCleartextTraffic="true">
         <!-- Changed to use selective cleartext for specific network types -->
         
         <activity

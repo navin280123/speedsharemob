@@ -318,6 +318,7 @@ class _FileSenderScreenState extends State<FileSenderScreen>
 
   void connectToReceiver(String ip, [String? name]) async {
     if (_selectedFiles.isEmpty) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -345,67 +346,30 @@ class _FileSenderScreenState extends State<FileSenderScreen>
       socket = await Socket.connect(ip, 8080, timeout: Duration(seconds: 5));
 
       String deviceName = name ?? '';
-      if (deviceName.isEmpty) {
-        final completer = Completer<String>();
-        socket!.listen(
-          (data) {
-            String message = String.fromCharCodes(data);
-            if (message.startsWith('DEVICE_NAME:')) {
-              deviceName = message.replaceFirst('DEVICE_NAME:', '');
-              if (!completer.isCompleted) {
-                completer.complete(deviceName);
-              }
-            }
-          },
-          onDone: () {
-            if (!completer.isCompleted) {
-              completer.complete('Unknown Device');
-            }
-          },
-          onError: (e) {
-            if (!completer.isCompleted) {
-              completer.completeError(e);
-            }
-          },
-        );
-        try {
-          deviceName = await completer.future.timeout(Duration(seconds: 1));
-        } catch (e) {
-          deviceName = 'Unknown Device';
-        }
+      bool _waitingForDeviceName = deviceName.isEmpty;
+      Completer<String>? nameCompleter;
+
+      if (_waitingForDeviceName) {
+        nameCompleter = Completer<String>();
       }
 
-      if (mounted) {
-        setState(() {
-          isConnecting = false;
-          _receiverName = deviceName;
-        });
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.check_circle_rounded, color: Colors.white),
-              SizedBox(width: 10),
-              Text('Connected to $deviceName'),
-            ],
-          ),
-          backgroundColor: Color(0xFF2AB673),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          margin: EdgeInsets.all(20),
-        ),
-      );
-
-      // We will listen for READY_FOR_FILE_DATA and TRANSFER_COMPLETE
+      // Single listener for the entire socket lifetime
       socket!.listen(
         (data) {
           final message = utf8.decode(data);
+
+          // Handle device name response
+          if (_waitingForDeviceName && message.startsWith('DEVICE_NAME:')) {
+            deviceName = message.replaceFirst('DEVICE_NAME:', '');
+            _waitingForDeviceName = false;
+            if (nameCompleter != null && !nameCompleter.isCompleted) {
+              nameCompleter.complete(deviceName);
+            }
+            return;
+          }
+
+          // Handle transfer protocol messages
           if (message == 'READY_FOR_FILE_DATA') {
-            // Start sending data for the current file
             _sendCurrentFileData();
           } else if (message == 'TRANSFER_COMPLETE') {
             _handleFileTransferComplete();
@@ -416,26 +380,26 @@ class _FileSenderScreenState extends State<FileSenderScreen>
             setState(() {
               _isSending = false;
             });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.error_outline_rounded, color: Colors.white),
+                    SizedBox(width: 10),
+                    Text(
+                      'Connection error: ${error.toString().substring(0, min(error.toString().length, 50))}',
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.red[700],
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                margin: EdgeInsets.all(20),
+              ),
+            );
           }
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  Icon(Icons.error_outline_rounded, color: Colors.white),
-                  SizedBox(width: 10),
-                  Text(
-                    'Connection error: ${error.toString().substring(0, min(error.toString().length, 50))}',
-                  ),
-                ],
-              ),
-              backgroundColor: Colors.red[700],
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              margin: EdgeInsets.all(20),
-            ),
-          );
         },
         onDone: () {
           if (_isSending && _progress < 1.0 && mounted) {
@@ -463,6 +427,41 @@ class _FileSenderScreenState extends State<FileSenderScreen>
         },
       );
 
+      // Wait for device name if needed
+      if (nameCompleter != null) {
+        try {
+          deviceName = await nameCompleter.future.timeout(Duration(seconds: 2));
+        } catch (e) {
+          deviceName = 'Unknown Device';
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          isConnecting = false;
+          _receiverName = deviceName;
+        });
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle_rounded, color: Colors.white),
+              SizedBox(width: 10),
+              Text('Connected to $deviceName'),
+            ],
+          ),
+          backgroundColor: Color(0xFF2AB673),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          margin: EdgeInsets.all(20),
+        ),
+      );
+
       // Start the file transfer handshake for the first file
       _startFileTransfer();
     } catch (e) {
@@ -471,31 +470,31 @@ class _FileSenderScreenState extends State<FileSenderScreen>
           isConnecting = false;
           _currentStep = 2;
         });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error_outline_rounded, color: Colors.white),
+                SizedBox(width: 10),
+                Text(
+                  'Failed to connect: ${e.toString().substring(0, min(e.toString().length, 50))}',
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red[700],
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            margin: EdgeInsets.all(20),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () => connectToReceiver(ip, name),
+            ),
+          ),
+        );
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.error_outline_rounded, color: Colors.white),
-              SizedBox(width: 10),
-              Text(
-                'Failed to connect: ${e.toString().substring(0, min(e.toString().length, 50))}',
-              ),
-            ],
-          ),
-          backgroundColor: Colors.red[700],
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          margin: EdgeInsets.all(20),
-          action: SnackBarAction(
-            label: 'Retry',
-            textColor: Colors.white,
-            onPressed: () => connectToReceiver(ip, name),
-          ),
-        ),
-      );
     }
   }
 
@@ -644,37 +643,43 @@ class _FileSenderScreenState extends State<FileSenderScreen>
     if (socket == null || _currentFileIndex >= _selectedFiles.length) return;
     final currentFile = _selectedFiles[_currentFileIndex];
     try {
-      final fileBytes = await currentFile.file.readAsBytes();
       final int bufferSize =
           currentFile.size > 100 * 1024 * 1024 ? 32 * 1024 : 4 * 1024;
       int bytesSent = 0;
       int lastProgressUpdate = 0;
-      final int updateThreshold = (currentFile.size / 100).round();
+      final int updateThreshold = (currentFile.size / 100).round().clamp(1, currentFile.size);
 
-      for (int i = 0; i < fileBytes.length; i += bufferSize) {
+      // Stream the file in chunks instead of loading it all into memory
+      final fileStream = currentFile.file.openRead();
+      int chunkCount = 0;
+
+      await for (final chunk in fileStream) {
         if (socket == null) {
           throw Exception("Connection lost");
         }
-        int end =
-            (i + bufferSize < fileBytes.length)
-                ? i + bufferSize
-                : fileBytes.length;
-        List<int> chunk = fileBytes.sublist(i, end);
 
-        socket!.add(chunk);
-        bytesSent += chunk.length;
-        _totalBytesSent += chunk.length;
+        // Send in sub-chunks if the stream chunk is larger than bufferSize
+        for (int i = 0; i < chunk.length; i += bufferSize) {
+          final end = (i + bufferSize < chunk.length) ? i + bufferSize : chunk.length;
+          final subChunk = chunk.sublist(i, end);
+
+          socket!.add(subChunk);
+          bytesSent += subChunk.length;
+          _totalBytesSent += subChunk.length;
+        }
 
         if (bytesSent - lastProgressUpdate > updateThreshold && mounted) {
           setState(() {
             _selectedFiles[_currentFileIndex].progress =
-                bytesSent / fileBytes.length;
+                bytesSent / currentFile.size;
             _selectedFiles[_currentFileIndex].bytesSent = bytesSent;
             _progress = _totalBytesSent / _totalFileSize;
           });
           lastProgressUpdate = bytesSent;
         }
-        if (i % (bufferSize * 10) == 0) {
+
+        chunkCount++;
+        if (chunkCount % 10 == 0) {
           await Future.delayed(Duration(milliseconds: 1));
         }
       }
@@ -700,31 +705,31 @@ class _FileSenderScreenState extends State<FileSenderScreen>
           _selectedFiles[_currentFileIndex].status = 'Failed';
           _isSending = false;
         });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error_outline_rounded, color: Colors.white),
+                SizedBox(width: 10),
+                Text(
+                  'Error sending file: ${e.toString().substring(0, min(e.toString().length, 50))}',
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red[700],
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            margin: EdgeInsets.all(20),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: _sendCurrentFileData,
+            ),
+          ),
+        );
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.error_outline_rounded, color: Colors.white),
-              SizedBox(width: 10),
-              Text(
-                'Error sending file: ${e.toString().substring(0, min(e.toString().length, 50))}',
-              ),
-            ],
-          ),
-          backgroundColor: Colors.red[700],
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          margin: EdgeInsets.all(20),
-          action: SnackBarAction(
-            label: 'Retry',
-            textColor: Colors.white,
-            onPressed: _sendCurrentFileData,
-          ),
-        ),
-      );
     }
   }
 
@@ -976,7 +981,7 @@ class _FileSenderScreenState extends State<FileSenderScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Lottie.asset(
-            'assets/upload_animation.json',
+            'assets/upload.json',
             width: 180,
             height: 180,
             fit: BoxFit.contain,

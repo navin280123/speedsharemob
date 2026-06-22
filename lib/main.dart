@@ -19,6 +19,14 @@ class MyApp extends StatefulWidget {
 
   const MyApp({super.key, required this.darkMode});
 
+  /// Global key to access _MyAppState from anywhere (e.g., SettingsScreen)
+  static final GlobalKey<_MyAppState> appKey = GlobalKey<_MyAppState>();
+
+  /// Convenience method to update dark mode from anywhere
+  static void updateDarkMode(bool isDark) {
+    appKey.currentState?.setDarkMode(isDark);
+  }
+
   @override
   State<MyApp> createState() => _MyAppState();
 }
@@ -30,16 +38,19 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     _darkMode = widget.darkMode;
+  }
 
-    // Listen for settings changes
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.reload();
+  /// Called by SettingsScreen to live-update the theme
+  void setDarkMode(bool isDark) {
+    setState(() {
+      _darkMode = isDark;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      key: MyApp.appKey,
       title: 'SpeedShare',
       theme: ThemeData(
         brightness: _darkMode ? Brightness.dark : Brightness.light,

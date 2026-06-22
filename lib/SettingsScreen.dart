@@ -3,6 +3,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:speedsharemob/main.dart';
 import 'dart:io';
 
 class SettingsScreen extends StatefulWidget {
@@ -23,11 +24,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String deviceName = '';
   bool loading = true;
   bool saveHistory = true;
+  late TextEditingController _portController;
   
   @override
   void initState() {
     super.initState();
+    _portController = TextEditingController(text: port.toString());
     _loadSettings();
+  }
+
+  @override
+  void dispose() {
+    _portController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadSettings() async {
@@ -56,6 +65,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         port = prefs.getInt('port') ?? 8080;
         downloadPath = prefs.getString('downloadPath') ?? speedsharePath;
         saveHistory = prefs.getBool('saveHistory') ?? true;
+        _portController.text = port.toString();
         loading = false;
       });
     } catch (e) {
@@ -230,6 +240,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 setState(() {
                                   darkMode = value;
                                 });
+                                MyApp.updateDarkMode(value);
                               },
                               icon: Icons.dark_mode_rounded,
                             ),
@@ -566,7 +577,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                   keyboardType: TextInputType.number,
-                  controller: TextEditingController(text: port.toString()),
+                  controller: _portController,
                   onChanged: (value) {
                     try {
                       port = int.parse(value);

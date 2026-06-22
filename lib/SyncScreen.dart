@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
@@ -430,13 +431,19 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
   }
 
   bool _isPathAllowed(String filePath) {
-    return _sharedPaths.any((sharedPath) => filePath.startsWith(sharedPath));
+    try {
+      // Canonicalize the path to resolve '..' and symlinks, preventing traversal attacks
+      final canonicalPath = p.canonicalize(filePath);
+      return _sharedPaths.any((sharedPath) => canonicalPath.startsWith(p.canonicalize(sharedPath)));
+    } catch (e) {
+      return false;
+    }
   }
 
   String _generateAccessCode() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    final random = DateTime.now().millisecondsSinceEpoch;
-    return List.generate(6, (index) => chars[(random + index) % chars.length]).join();
+    final random = Random.secure();
+    return List.generate(6, (index) => chars[random.nextInt(chars.length)]).join();
   }
 
   Future<void> _browseDevice(SyncDevice device) async {

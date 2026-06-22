@@ -139,25 +139,20 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
           }
         },
       ),
-      bottomNavigationBar: LayoutBuilder(
-        builder: (context, constraints) {
-          if (constraints.maxWidth >= 600) {
-            return const SizedBox.shrink(); // Hide on desktop
-          }
-          return BottomNavigationBar(
-            currentIndex: _selectedIndex,
-            onTap: (index) {
-              setState(() {
-                _selectedIndex = index;
-              });
-            },
-            items: _navigationOptions.map((option) => BottomNavigationBarItem(
-              icon: Icon(option['icon']),
-              label: option['title'],
-            )).toList(),
-          );
-        },
-      ),
+      bottomNavigationBar: MediaQuery.of(context).size.width >= 600
+          ? const SizedBox.shrink() // Hide on desktop
+          : BottomNavigationBar(
+              currentIndex: _selectedIndex,
+              onTap: (index) {
+                setState(() {
+                  _selectedIndex = index;
+                });
+              },
+              items: _navigationOptions.map((option) => BottomNavigationBarItem(
+                icon: Icon(option['icon']),
+                label: option['title'],
+              )).toList(),
+            ),
     );
   }
 

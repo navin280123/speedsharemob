@@ -982,7 +982,7 @@ class _ReceiveScreenState extends State<ReceiveScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Lottie.asset(
-              'assets/empty_folder_animation.json',
+              'assets/receive.json',
               height: 120,
               errorBuilder: (context, error, stackTrace) {
                 return Icon(
