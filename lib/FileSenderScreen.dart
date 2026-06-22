@@ -877,6 +877,145 @@ class _FileSenderScreenState extends State<FileSenderScreen>
     super.dispose();
   }
 
+  void _showManualConnectDialog() {
+    final ipController = TextEditingController();
+    bool isConnectingManual = false;
+    String? errorMessage;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Connect Manually'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Enter the IP address of the receiver device (e.g., 192.168.1.15):',
+                    style: TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: ipController,
+                    decoration: InputDecoration(
+                      hintText: 'Receiver IP Address',
+                      errorText: errorMessage,
+                      prefixIcon: const Icon(Icons.lan_rounded),
+                      border: const OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                    autofocus: true,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isConnectingManual ? null : () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isConnectingManual
+                      ? null
+                      : () async {
+                          final ip = ipController.text.trim();
+                          if (ip.isEmpty) {
+                            setDialogState(() {
+                              errorMessage = 'IP address cannot be empty';
+                            });
+                            return;
+                          }
+                          final ipRegex = RegExp(
+                            r'^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$',
+                          );
+                          if (!ipRegex.hasMatch(ip)) {
+                            setDialogState(() {
+                              errorMessage = 'Enter a valid IPv4 address';
+                            });
+                            return;
+                          }
+
+                          setDialogState(() {
+                            isConnectingManual = true;
+                            errorMessage = null;
+                          });
+
+                          Socket? sock;
+                          try {
+                            sock = await Socket.connect(
+                              ip,
+                              8080,
+                              timeout: const Duration(seconds: 2),
+                            );
+
+                            final completer = Completer<String?>();
+                            Timer(const Duration(seconds: 2), () {
+                              if (!completer.isCompleted) completer.complete(null);
+                            });
+
+                            sock.listen((data) {
+                              final message = String.fromCharCodes(data);
+                              if (message.startsWith('DEVICE_NAME:')) {
+                                final name = message.replaceFirst('DEVICE_NAME:', '');
+                                if (!completer.isCompleted) completer.complete(name);
+                              }
+                            }, onError: (e) {
+                              if (!completer.isCompleted) completer.complete(null);
+                            });
+
+                            final deviceName = await completer.future;
+                            sock.destroy();
+
+                            if (deviceName != null && deviceName.isNotEmpty) {
+                              if (mounted) {
+                                setState(() {
+                                  availableReceivers.removeWhere((d) => d.ip == ip);
+                                  final newDevice = ReceiverDevice(name: deviceName, ip: ip);
+                                  availableReceivers.insert(0, newDevice);
+                                  _filteredReceivers = _filterReceivers();
+                                  _selectedReceiverIndex = 0;
+                                });
+                              }
+                              if (context.mounted) {
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Connected to $deviceName ($ip)'),
+                                    backgroundColor: const Color(0xFF2AB673),
+                                  ),
+                                );
+                              }
+                            } else {
+                              setDialogState(() {
+                                isConnectingManual = false;
+                                errorMessage = 'Receiver did not respond correctly';
+                              });
+                            }
+                          } catch (e) {
+                            setDialogState(() {
+                              isConnectingManual = false;
+                              errorMessage = 'Failed to connect. Make sure receiving is active.';
+                            });
+                          }
+                        },
+                  child: isConnectingManual
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Connect'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1347,6 +1486,20 @@ class _FileSenderScreenState extends State<FileSenderScreen>
                       Theme.of(context).brightness == Brightness.dark
                           ? Colors.grey[400]
                           : Colors.grey[600],
+                ),
+              ),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: _showManualConnectDialog,
+                icon: const Icon(Icons.add_link_rounded, size: 16),
+                label: const Text(
+                  'Connect Manually',
+                  style: TextStyle(fontSize: 12),
+                ),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(50, 30),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
               ),
             ],

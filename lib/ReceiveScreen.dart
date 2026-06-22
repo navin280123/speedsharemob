@@ -199,6 +199,7 @@ class _ReceiveScreenState extends State<ReceiveScreen>
         8081,
         reuseAddress: true,
       );
+      _discoverySocket!.broadcastEnabled = true;
       _discoverySocket!.listen((event) {
         if (event == RawSocketEvent.read) {
           final datagram = _discoverySocket!.receive();
