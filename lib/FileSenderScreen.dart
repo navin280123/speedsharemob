@@ -164,6 +164,11 @@ class _FileSenderScreenState extends State<FileSenderScreen>
           }
         }
       }, onError: (e) {
+        if (e is SocketException &&
+            (e.osError?.errorCode == 65 || e.osError?.errorCode == 51)) {
+          // Ignore expected "No route to host" / "Network unreachable" on inactive virtual interfaces
+          return;
+        }
         print('UDP discovery socket error: $e');
       });
 
