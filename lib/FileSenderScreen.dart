@@ -174,6 +174,19 @@ class _FileSenderScreenState extends State<FileSenderScreen>
 
       // Send discovery messages with error handling
       try {
+        final message = utf8.encode('SPEEDSHARE_DISCOVERY');
+
+        // Try global broadcast first
+        try {
+          _discoverySocket!.send(
+            message,
+            InternetAddress('255.255.255.255'),
+            8081,
+          );
+        } catch (e) {
+          // Ignore
+        }
+
         final interfaces = await NetworkInterface.list();
         for (var interface in interfaces) {
           if (interface.name.contains('lo')) continue;
@@ -182,7 +195,6 @@ class _FileSenderScreenState extends State<FileSenderScreen>
               final parts = addr.address.split('.');
               if (parts.length == 4) {
                 final subnet = parts.sublist(0, 3).join('.');
-                final message = utf8.encode('SPEEDSHARE_DISCOVERY');
 
                 // Try sending to broadcast address first - most important
                 try {
@@ -192,7 +204,7 @@ class _FileSenderScreenState extends State<FileSenderScreen>
                     8081,
                   );
                 } catch (e) {
-                  print('Failed to send to broadcast: $e');
+                  // Ignore
                 }
 
                 // Try own address

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -19,6 +20,7 @@ class _ReceiveScreenState extends State<ReceiveScreen>
     with SingleTickerProviderStateMixin {
   ServerSocket? serverSocket;
   RawDatagramSocket? _discoverySocket;
+  Timer? _announcementTimer;
   String receivedFileName = '';
   double progress = 0.0;
   String ipAddress = '';
@@ -195,6 +197,7 @@ class _ReceiveScreenState extends State<ReceiveScreen>
       _discoverySocket = await RawDatagramSocket.bind(
         InternetAddress.anyIPv4,
         8081,
+        reuseAddress: true,
       );
       _discoverySocket!.listen((event) {
         if (event == RawSocketEvent.read) {
@@ -226,6 +229,8 @@ class _ReceiveScreenState extends State<ReceiveScreen>
         isReceiving = true;
         isReceivingAnimation = true;
       });
+
+      _startAnnouncing();
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -445,6 +450,7 @@ class _ReceiveScreenState extends State<ReceiveScreen>
   }
 
   void stopReceiving() {
+    _stopAnnouncing();
     serverSocket?.close();
     _discoverySocket?.close();
     setState(() {
@@ -596,8 +602,60 @@ class _ReceiveScreenState extends State<ReceiveScreen>
     return DateFormat('dd MMM yyyy, HH:mm').format(date);
   }
 
+  void _startAnnouncing() {
+    _announcementTimer?.cancel();
+    _announcementTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+      if (_discoverySocket == null || !isReceiving) return;
+      try {
+        final message = utf8.encode('SPEEDSHARE_RESPONSE:$computerName:READY');
+        
+        // Broadcast globally
+        try {
+          _discoverySocket!.send(
+            message,
+            InternetAddress('255.255.255.255'),
+            8081,
+          );
+        } catch (e) {
+          // Ignore
+        }
+
+        // Broadcast to subnets
+        final interfaces = await NetworkInterface.list();
+        for (var interface in interfaces) {
+          if (interface.name.contains('lo')) continue;
+          for (var addr in interface.addresses) {
+            if (addr.type == InternetAddressType.IPv4) {
+              final parts = addr.address.split('.');
+              if (parts.length == 4) {
+                final subnet = parts.sublist(0, 3).join('.');
+                try {
+                  _discoverySocket!.send(
+                    message,
+                    InternetAddress('$subnet.255'),
+                    8081,
+                  );
+                } catch (e) {
+                  // Ignore
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        print('Announcement error: $e');
+      }
+    });
+  }
+
+  void _stopAnnouncing() {
+    _announcementTimer?.cancel();
+    _announcementTimer = null;
+  }
+
   @override
   void dispose() {
+    _stopAnnouncing();
     _animationController.dispose();
     serverSocket?.close();
     _discoverySocket?.close();
