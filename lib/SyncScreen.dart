@@ -86,6 +86,8 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
             _handleSyncDiscovery(datagram);
           }
         }
+      }, onError: (e) {
+        print('Sync discovery socket error: $e');
       });
     } catch (e) {
       print('Error initializing sync: $e');
@@ -246,7 +248,12 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
       _accessCode = _generateAccessCode();
       
       _storageServer = await HttpServer.bind(InternetAddress.anyIPv4, 8082);
-      _storageServer!.listen(_handleStorageRequest);
+      _storageServer!.listen(
+        _handleStorageRequest,
+        onError: (e) {
+          print('Storage server error: $e');
+        },
+      );
       
       setState(() {
         _isStorageSharing = true;

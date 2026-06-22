@@ -163,6 +163,8 @@ class _FileSenderScreenState extends State<FileSenderScreen>
             }
           }
         }
+      }, onError: (e) {
+        print('UDP discovery socket error: $e');
       });
 
       // Send discovery messages with error handling
@@ -297,6 +299,11 @@ class _FileSenderScreenState extends State<FileSenderScreen>
           if (!completer.isCompleted) {
             completer.complete(deviceName);
           }
+        }
+      }, onError: (e) {
+        print('Socket error during receiver check: $e');
+        if (!completer.isCompleted) {
+          completer.complete(null);
         }
       });
 

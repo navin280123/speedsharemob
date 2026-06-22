@@ -213,6 +213,8 @@ class _ReceiveScreenState extends State<ReceiveScreen>
             }
           }
         }
+      }, onError: (e) {
+        print('UDP discovery socket error: $e');
       });
 
       setState(() {
@@ -403,7 +405,14 @@ class _ReceiveScreenState extends State<ReceiveScreen>
               });
             }
           }
+        }, onError: (e) {
+          print('TCP client socket error: $e');
+          client.close();
+        }, onDone: () {
+          client.close();
         });
+      }, onError: (e) {
+        print('Server socket error: $e');
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
