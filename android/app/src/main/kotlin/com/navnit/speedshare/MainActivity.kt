@@ -1,4 +1,4 @@
-package com.example.speedsharemob
+package com.navnit.speedshare
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -13,9 +13,9 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.example.speedsharemob"
+    namespace = "com.navnit.speedshare"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "25.1.8937393"
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -27,7 +27,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.speedsharemob"
+        applicationId = "com.navnit.speedshare"
         minSdk = 27
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -36,16 +36,24 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = keystoreProperties["MY_RELEASE_STORE_FILE"]?.let { file(it as String) }
-            storePassword = keystoreProperties["MY_RELEASE_STORE_PASSWORD"] as String?
-            keyAlias = keystoreProperties["MY_RELEASE_KEY_ALIAS"] as String?
-            keyPassword = keystoreProperties["MY_RELEASE_KEY_PASSWORD"] as String?
+            val storeFilePath = keystoreProperties["MY_RELEASE_STORE_FILE"] as String?
+            if (storeFilePath != null) {
+                storeFile = file(storeFilePath)
+                storePassword = keystoreProperties["MY_RELEASE_STORE_PASSWORD"] as String?
+                keyAlias = keystoreProperties["MY_RELEASE_KEY_ALIAS"] as String?
+                keyPassword = keystoreProperties["MY_RELEASE_KEY_PASSWORD"] as String?
+            }
         }
     }
 
     buildTypes {
         getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
+            val hasReleaseKey = keystoreProperties.containsKey("MY_RELEASE_STORE_FILE")
+            signingConfig = if (hasReleaseKey) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             isMinifyEnabled = false
             isShrinkResources = false
             proguardFiles(

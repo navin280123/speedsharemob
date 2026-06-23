@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:speedsharemob/main.dart';
+import 'package:speedsharemob/DeveloperDetailsScreen.dart';
 import 'dart:io';
 
 class SettingsScreen extends StatefulWidget {
@@ -862,65 +863,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                   
-                  const SizedBox(height: 24),
-                  
-                  // Developer info
-                  const CircleAvatar(
-                    radius: 32,
-                    backgroundImage: NetworkImage(
-                      'https://avatars.githubusercontent.com/u/103583078?s=400&u=80572f8430b374171aaa46ee2d9c67c3b62c3b65&v=4',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Navin Kumar',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const Text(
-                    'Flutter Developer',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                    ),
-                  ),
+                  const SizedBox(height: 20),
+                  const Divider(),
                   const SizedBox(height: 8),
-                  InkWell(
-                    onTap: () => _launchUrl('mailto:kumarnavinverma7@gmail.com'),
-                    child: const Text(
-                      'kumarnavinverma7@gmail.com',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF4E6AF3),
-                        decoration: TextDecoration.underline,
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2AB673).withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.person_rounded,
+                        color: Color(0xFF2AB673),
                       ),
                     ),
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Social links
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.code),
-                        tooltip: 'GitHub',
-                        onPressed: () => _launchUrl('https://github.com/navin280123'),
+                    title: const Text(
+                      'Developer Details',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.business),
-                        tooltip: 'LinkedIn',
-                        onPressed: () => _launchUrl('https://www.linkedin.com/in/navin-kumar-verma/'),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.alternate_email),
-                        tooltip: 'Instagram',
-                        onPressed: () => _launchUrl('https://www.instagram.com/navin.2801/'),
-                      ),
-                    ],
+                    ),
+                    subtitle: const Text(
+                      'Connect with the developer',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const DeveloperDetailsScreen(),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
