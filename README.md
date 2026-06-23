@@ -5,6 +5,7 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 **Speed Share** is a high-speed, secure, and completely offline file-sharing and storage synchronization application built using Flutter. It allows seamless, cross-platform file transfers and directory synchronization over local Wi-Fi or mobile hotspots—**zero internet or mobile data usage required.**
+<img width="1536" height="1024" alt="ChatGPT Image Jun 23, 2026, 09_30_13 PM" src="https://github.com/user-attachments/assets/856c99f5-4906-4dda-8549-9d92f7d48726" />
 
 ---
 
@@ -24,7 +25,8 @@
 Speed Share operates using peer-to-peer (P2P) local networking patterns:
 
 1. **Service Discovery (UDP Broadcast):** Devices announce their presence on the local subnet by broadcasting UDP packets (on port `8083`). This allows instances of Speed Share to automatically discover each other without manual IP entry.
-2. **File Server (HTTP Server):** When sharing files or directories, the sending device spins up a lightweight, local HTTP server (`HttpServer` from `dart:io` on port `8082`).
+2. **File Server (HTTP Server):** When sharing files or directories, the sending device spins up a lightweight, local HTTP server (`HttpServer` from `dart:io` on port `8082`).![Uploading ChatGPT Image Jun 23, 2026, 09_30_13 PM.png…]()
+
 3. **File Transfer (HTTP Clients):** The receiving device requests the files via HTTP GET requests. High-speed streams pipe file bytes directly from host disk to receiver disk, showing real-time progress bars.
 
 ---
