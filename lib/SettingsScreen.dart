@@ -85,27 +85,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await prefs.setBool('saveHistory', saveHistory);
       
       if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Row(
+          content: const Row(
             children: [
               Icon(Icons.check_circle_rounded, color: Colors.white),
               SizedBox(width: 10),
               Text('Settings saved successfully'),
             ],
           ),
-          backgroundColor: Color(0xFF2AB673),
+          backgroundColor: const Color(0xFF2AB673),
           behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          margin: EdgeInsets.all(20),
+          margin: const EdgeInsets.all(20),
         ),
       );
     } catch (e) {
       debugPrint('Error saving settings: $e');
       if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Row(
+          content: const Row(
             children: [
               Icon(Icons.error_rounded, color: Colors.white),
               SizedBox(width: 10),
@@ -114,8 +117,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          margin: EdgeInsets.all(20),
+          margin: const EdgeInsets.all(20),
         ),
       );
     }
@@ -139,13 +143,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(
+        title: const Text(
           'Reset Settings',
           style: TextStyle(
             fontWeight: FontWeight.bold,
           ),
         ),
-        content: Text(
+        content: const Text(
           'This will reset all settings to default values. Are you sure you want to continue?',
         ),
         actions: [
@@ -166,19 +170,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
               await prefs.clear();
               await _loadSettings();
               
+              messenger.clearSnackBars();
               messenger.showSnackBar(
                 SnackBar(
-                  content: Row(
+                  content: const Row(
                     children: [
                       Icon(Icons.refresh_rounded, color: Colors.white),
                       SizedBox(width: 10),
                       Text('Settings reset to defaults'),
                     ],
                   ),
-                  backgroundColor: Color(0xFF4E6AF3),
+                  backgroundColor: const Color(0xFF4E6AF3),
                   behavior: SnackBarBehavior.floating,
+                  duration: const Duration(seconds: 2),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  margin: EdgeInsets.all(20),
+                  margin: const EdgeInsets.all(20),
                 ),
               );
             },

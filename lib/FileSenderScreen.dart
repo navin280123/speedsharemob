@@ -325,9 +325,10 @@ class FileSenderScreenState extends State<FileSenderScreen>
   void connectToReceiver(String ip, [String? name]) async {
     if (_selectedFiles.isEmpty) {
       if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Row(
+          content: const Row(
             children: [
               Icon(Icons.warning_amber_rounded, color: Colors.white),
               SizedBox(width: 10),
@@ -336,10 +337,11 @@ class FileSenderScreenState extends State<FileSenderScreen>
           ),
           backgroundColor: Colors.orange,
           behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
-          margin: EdgeInsets.all(20),
+          margin: const EdgeInsets.all(20),
         ),
       );
       return;
@@ -388,12 +390,13 @@ class FileSenderScreenState extends State<FileSenderScreen>
             setState(() {
               _isSending = false;
             });
+            ScaffoldMessenger.of(context).clearSnackBars();
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Row(
                   children: [
-                    Icon(Icons.error_outline_rounded, color: Colors.white),
-                    SizedBox(width: 10),
+                    const Icon(Icons.error_outline_rounded, color: Colors.white),
+                    const SizedBox(width: 10),
                     Text(
                       'Connection error: ${error.toString().substring(0, min(error.toString().length, 50))}',
                     ),
@@ -401,10 +404,11 @@ class FileSenderScreenState extends State<FileSenderScreen>
                 ),
                 backgroundColor: Colors.red[700],
                 behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 3),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
-                margin: EdgeInsets.all(20),
+                margin: const EdgeInsets.all(20),
               ),
             );
           }
@@ -414,9 +418,10 @@ class FileSenderScreenState extends State<FileSenderScreen>
             setState(() {
               _isSending = false;
             });
+            ScaffoldMessenger.of(context).clearSnackBars();
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Row(
+                content: const Row(
                   children: [
                     Icon(Icons.error_outline_rounded, color: Colors.white),
                     SizedBox(width: 10),
@@ -425,6 +430,7 @@ class FileSenderScreenState extends State<FileSenderScreen>
                 ),
                 backgroundColor: Colors.red[700],
                 behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 3),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -452,21 +458,23 @@ class FileSenderScreenState extends State<FileSenderScreen>
       }
 
       if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
-              Icon(Icons.check_circle_rounded, color: Colors.white),
-              SizedBox(width: 10),
+              const Icon(Icons.check_circle_rounded, color: Colors.white),
+              const SizedBox(width: 10),
               Text('Connected to $deviceName'),
             ],
           ),
-          backgroundColor: Color(0xFF2AB673),
+          backgroundColor: const Color(0xFF2AB673),
           behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
-          margin: EdgeInsets.all(20),
+          margin: const EdgeInsets.all(20),
         ),
       );
 
@@ -478,12 +486,13 @@ class FileSenderScreenState extends State<FileSenderScreen>
           isConnecting = false;
           _currentStep = 2;
         });
+        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
-                Icon(Icons.error_outline_rounded, color: Colors.white),
-                SizedBox(width: 10),
+                const Icon(Icons.error_outline_rounded, color: Colors.white),
+                const SizedBox(width: 10),
                 Text(
                   'Failed to connect: ${e.toString().substring(0, min(e.toString().length, 50))}',
                 ),
@@ -491,10 +500,11 @@ class FileSenderScreenState extends State<FileSenderScreen>
             ),
             backgroundColor: Colors.red[700],
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
-            margin: EdgeInsets.all(20),
+            margin: const EdgeInsets.all(20),
             action: SnackBarAction(
               label: 'Retry',
               textColor: Colors.white,
@@ -626,12 +636,13 @@ class FileSenderScreenState extends State<FileSenderScreen>
         });
       }
       if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
-              Icon(Icons.error_outline_rounded, color: Colors.white),
-              SizedBox(width: 10),
+              const Icon(Icons.error_outline_rounded, color: Colors.white),
+              const SizedBox(width: 10),
               Text(
                 'Error sending metadata: ${e.toString().substring(0, min(e.toString().length, 50))}',
               ),
@@ -639,10 +650,11 @@ class FileSenderScreenState extends State<FileSenderScreen>
           ),
           backgroundColor: Colors.red[700],
           behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
-          margin: EdgeInsets.all(20),
+          margin: const EdgeInsets.all(20),
           action: SnackBarAction(
             label: 'Retry',
             textColor: Colors.white,
@@ -719,12 +731,13 @@ class FileSenderScreenState extends State<FileSenderScreen>
           _selectedFiles[_currentFileIndex].status = 'Failed';
           _isSending = false;
         });
+        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
-                Icon(Icons.error_outline_rounded, color: Colors.white),
-                SizedBox(width: 10),
+                const Icon(Icons.error_outline_rounded, color: Colors.white),
+                const SizedBox(width: 10),
                 Text(
                   'Error sending file: ${e.toString().substring(0, min(e.toString().length, 50))}',
                 ),
@@ -732,10 +745,11 @@ class FileSenderScreenState extends State<FileSenderScreen>
             ),
             backgroundColor: Colors.red[700],
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
-            margin: EdgeInsets.all(20),
+            margin: const EdgeInsets.all(20),
             action: SnackBarAction(
               label: 'Retry',
               textColor: Colors.white,
@@ -756,17 +770,19 @@ class FileSenderScreenState extends State<FileSenderScreen>
         _isSending = false;
         _transferComplete = true;
         _progress = 1.0;
+        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
+            content: const Row(
               children: [
                 Icon(Icons.check_circle_rounded, color: Colors.white),
                 SizedBox(width: 10),
                 Text('All files sent successfully!'),
               ],
             ),
-            backgroundColor: Color(0xFF2AB673),
+            backgroundColor: const Color(0xFF2AB673),
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
@@ -970,10 +986,12 @@ class FileSenderScreenState extends State<FileSenderScreen>
                               }
                               if (context.mounted) {
                                 Navigator.pop(context);
+                                ScaffoldMessenger.of(context).clearSnackBars();
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text('Connected to $deviceName ($ip)'),
                                     backgroundColor: const Color(0xFF2AB673),
+                                    duration: const Duration(seconds: 2),
                                   ),
                                 );
                               }

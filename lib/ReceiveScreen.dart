@@ -212,21 +212,23 @@ class ReceiveScreenState extends State<ReceiveScreen>
       _startAnnouncing();
 
       if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Row(
+          content: const Row(
             children: [
               Icon(Icons.check_circle_rounded, color: Colors.white),
               SizedBox(width: 10),
               Text('Ready to receive files'),
             ],
           ),
-          backgroundColor: Color(0xFF2AB673),
+          backgroundColor: const Color(0xFF2AB673),
           behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
-          margin: EdgeInsets.all(20),
+          margin: const EdgeInsets.all(20),
         ),
       );
 
@@ -340,6 +342,7 @@ class ReceiveScreenState extends State<ReceiveScreen>
               });
 
               if (mounted) {
+                ScaffoldMessenger.of(context).clearSnackBars();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: LayoutBuilder(
@@ -374,7 +377,7 @@ class ReceiveScreenState extends State<ReceiveScreen>
                         _openFile(fileForWrite!.path);
                       },
                     ),
-                    duration: const Duration(seconds: 6),
+                    duration: const Duration(seconds: 2, milliseconds: 500),
                   ),
                 );
               }
@@ -407,21 +410,23 @@ class ReceiveScreenState extends State<ReceiveScreen>
       });
     } catch (e) {
       if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
-              Icon(Icons.error_rounded, color: Colors.white),
-              SizedBox(width: 10),
+              const Icon(Icons.error_rounded, color: Colors.white),
+              const SizedBox(width: 10),
               Text('Error: $e'),
             ],
           ),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
-          margin: EdgeInsets.all(20),
+          margin: const EdgeInsets.all(20),
         ),
       );
       setState(() {
@@ -448,9 +453,10 @@ class ReceiveScreenState extends State<ReceiveScreen>
       bytesReceived = 0;
       receivedFile = null;
     });
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Row(
+        content: const Row(
           children: [
             Icon(Icons.info_rounded, color: Colors.white),
             SizedBox(width: 10),
@@ -459,8 +465,9 @@ class ReceiveScreenState extends State<ReceiveScreen>
         ),
         backgroundColor: Colors.orange,
         behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: EdgeInsets.all(20),
+        margin: const EdgeInsets.all(20),
       ),
     );
   }
@@ -470,17 +477,19 @@ class ReceiveScreenState extends State<ReceiveScreen>
       final result = await OpenFile.open(filePath);
       if (!mounted) return;
       if (result.type != ResultType.done) {
+        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
-                Icon(Icons.error_rounded, color: Colors.white),
-                SizedBox(width: 10),
+                const Icon(Icons.error_rounded, color: Colors.white),
+                const SizedBox(width: 10),
                 Text('Could not open file: ${result.message}'),
               ],
             ),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
@@ -489,17 +498,19 @@ class ReceiveScreenState extends State<ReceiveScreen>
       }
     } catch (e) {
       if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
-              Icon(Icons.error_rounded, color: Colors.white),
-              SizedBox(width: 10),
+              const Icon(Icons.error_rounded, color: Colors.white),
+              const SizedBox(width: 10),
               Text('Error opening file: $e'),
             ],
           ),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
@@ -519,17 +530,19 @@ class ReceiveScreenState extends State<ReceiveScreen>
       } else {
         await Clipboard.setData(ClipboardData(text: downloadDirectoryPath));
         if (!mounted) return;
+        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
+            content: const Row(
               children: [
                 Icon(Icons.info_rounded, color: Colors.white),
                 SizedBox(width: 10),
                 Text('Path copied to clipboard'),
               ],
             ),
-            backgroundColor: Color(0xFF4E6AF3),
+            backgroundColor: const Color(0xFF4E6AF3),
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
@@ -538,17 +551,19 @@ class ReceiveScreenState extends State<ReceiveScreen>
       }
     } catch (e) {
       if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
-              Icon(Icons.error_rounded, color: Colors.white),
-              SizedBox(width: 10),
+              const Icon(Icons.error_rounded, color: Colors.white),
+              const SizedBox(width: 10),
               Text('Could not open folder: $e'),
             ],
           ),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
@@ -560,17 +575,19 @@ class ReceiveScreenState extends State<ReceiveScreen>
   void _copyIpToClipboard() async {
     await Clipboard.setData(ClipboardData(text: ipAddress));
     if (!mounted) return;
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Row(
+        content: const Row(
           children: [
             Icon(Icons.check_circle_rounded, color: Colors.white),
             SizedBox(width: 10),
             Text('IP address copied to clipboard'),
           ],
         ),
-        backgroundColor: Color(0xFF4E6AF3),
+        backgroundColor: const Color(0xFF4E6AF3),
         behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );

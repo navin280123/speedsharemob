@@ -718,37 +718,41 @@ class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
   }
 
   void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.check_circle_rounded, color: Colors.white),
-            SizedBox(width: 10),
+            const Icon(Icons.check_circle_rounded, color: Colors.white),
+            const SizedBox(width: 10),
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: Color(0xFF2AB673),
+        backgroundColor: const Color(0xFF2AB673),
         behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: EdgeInsets.all(20),
+        margin: const EdgeInsets.all(20),
       ),
     );
   }
 
   void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.error_rounded, color: Colors.white),
-            SizedBox(width: 10),
+            const Icon(Icons.error_rounded, color: Colors.white),
+            const SizedBox(width: 10),
             Expanded(child: Text(message)),
           ],
         ),
         backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: EdgeInsets.all(20),
+        margin: const EdgeInsets.all(20),
       ),
     );
   }
