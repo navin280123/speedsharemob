@@ -8,9 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:intl/intl.dart';
 import 'package:open_file/open_file.dart';
 import 'package:lottie/lottie.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:speedsharemob/PermissionManager.dart';
 
 class ReceiveScreen extends StatefulWidget {
   const ReceiveScreen({super.key});
@@ -48,7 +46,6 @@ class ReceiveScreenState extends State<ReceiveScreen>
     _getIpAddress();
     _getComputerName();
     _getDownloadsDirectory();
-    _checkPermissionsAndStart();
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -58,32 +55,8 @@ class ReceiveScreenState extends State<ReceiveScreen>
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
   }
-  Future<void> _checkPermissionsAndStart() async {
-  bool hasPermissions = await PermissionManager().requestAppPermissions();
-  
-  if (hasPermissions) {
-    // In FileSenderScreen
-    // startScanning();
-    
-    // OR in ReceiveScreen
-    // startReceiving();
-  } else {
-    // Show a message that permissions are required
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Required permissions not granted. Some features may not work.'),
-          action: SnackBarAction(
-            label: 'Settings',
-            onPressed: () => openAppSettings(),
-          ),
-          duration: const Duration(seconds: 5),
-        ),
-      );
-    }
-  }
-}
- void _getDownloadsDirectory() async {
+
+  void _getDownloadsDirectory() async {
   try {
     Directory downloadDirectory;
 

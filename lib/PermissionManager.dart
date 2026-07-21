@@ -65,17 +65,33 @@ class PermissionManager {
         return true;
       }
 
-      // Request permissions
-      debugPrint('Requesting permissions: $permissions');
-      Map<Permission, PermissionStatus> statuses = await permissions.request();
+      // Check current status of each permission to avoid re-requesting permanently denied or granted permissions
+      List<Permission> permissionsToRequest = [];
+      Map<Permission, PermissionStatus> currentStatuses = {};
 
-      // Log the results
-      statuses.forEach((permission, status) {
+      for (var permission in permissions) {
+        var status = await permission.status;
+        currentStatuses[permission] = status;
+        if (!status.isGranted && !status.isLimited && !status.isPermanentlyDenied) {
+          permissionsToRequest.add(permission);
+        }
+      }
+
+      // Request only pending permissions
+      if (permissionsToRequest.isNotEmpty) {
+        debugPrint('Requesting permissions: $permissionsToRequest');
+        Map<Permission, PermissionStatus> requestedStatuses =
+            await permissionsToRequest.request();
+        currentStatuses.addAll(requestedStatuses);
+      }
+
+      // Log current statuses
+      currentStatuses.forEach((permission, status) {
         debugPrint('Permission $permission status: $status');
       });
 
-      // Check if we have the basic needed permissions
-      bool hasRequiredPermissions = _checkMinimumPermissions(statuses);
+      // Check if we have the minimum required permissions
+      bool hasRequiredPermissions = _checkMinimumPermissions(currentStatuses);
 
       _permissionCompleter?.complete(hasRequiredPermissions);
       return hasRequiredPermissions;
@@ -114,22 +130,26 @@ class PermissionManager {
   bool _checkMinimumPermissions(Map<Permission, PermissionStatus> statuses) {
     if (!Platform.isAndroid && !Platform.isIOS) return true;
 
-    // For a file sharing app, we need at minimum location and some file access
-    bool hasLocationPermission =
-        statuses[Permission.locationWhenInUse] == PermissionStatus.granted;
-
-    bool hasFileAccess = false;
-    if (Platform.isAndroid) {
-      // Check for either storage or media permissions
-      hasFileAccess = statuses[Permission.storage] == PermissionStatus.granted ||
-          statuses[Permission.photos] == PermissionStatus.granted ||
-          statuses[Permission.videos] == PermissionStatus.granted ||
-          statuses[Permission.audio] == PermissionStatus.granted;
-    } else if (Platform.isIOS) {
-      // Photos access is optional on iOS; the app can still function
-      hasFileAccess = true;
+    if (Platform.isIOS) {
+      // On iOS, local network sharing works via Sockets and NSLocalNetworkUsageDescription in Info.plist.
+      // Photos picker uses native system picker sheets which do not block core socket file transfers.
+      return true;
     }
 
-    return hasLocationPermission && hasFileAccess;
+    if (Platform.isAndroid) {
+      bool hasLocationOrNearby =
+          statuses[Permission.locationWhenInUse]?.isGranted == true ||
+          statuses[Permission.nearbyWifiDevices]?.isGranted == true;
+
+      bool hasFileAccess =
+          statuses[Permission.storage]?.isGranted == true ||
+          statuses[Permission.photos]?.isGranted == true ||
+          statuses[Permission.videos]?.isGranted == true ||
+          statuses[Permission.audio]?.isGranted == true;
+
+      return hasLocationOrNearby || hasFileAccess;
+    }
+
+    return true;
   }
 }

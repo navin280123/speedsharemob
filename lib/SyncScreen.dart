@@ -38,8 +38,10 @@ class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
   SyncDevice? _selectedDevice;
   List<RemoteFileInfo> _remoteFiles = [];
   bool _isBrowsingFiles = false;
+  bool _isLoadingRemoteFiles = false;
   String _currentRemotePath = '/';
   final List<DownloadTask> _downloadQueue = [];
+  final Map<String, String> _devicePins = {};
   
   // Animation
   late AnimationController _pulseController;
@@ -120,7 +122,7 @@ class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
           name: data['deviceName'],
           ip: datagram.address.address,
           port: data['storagePort'],
-          accessCode: data['accessCode'],
+          accessCode: data['accessCode'] ?? '',
           capabilities: List<String>.from(data['capabilities']),
           lastSeen: DateTime.now(),
         );
@@ -206,7 +208,7 @@ class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
         'type': 'SPEEDSHARE_SYNC_ANNOUNCE',
         'deviceName': Platform.localHostname,
         'storagePort': 8082,
-        'accessCode': _accessCode,
+        'accessCode': '', // PIN code is kept secret on host device
         'capabilities': ['storage_share', 'storage_browse'],
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       });
@@ -412,6 +414,12 @@ class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
         }
       }
       
+      files.sort((a, b) {
+        if (a['isDirectory'] && !b['isDirectory']) return -1;
+        if (!a['isDirectory'] && b['isDirectory']) return 1;
+        return (a['name'] as String).toLowerCase().compareTo((b['name'] as String).toLowerCase());
+      });
+      
       request.response.headers.contentType = ContentType.json;
       request.response.write(json.encode(files));
     } catch (e) {
@@ -469,36 +477,161 @@ class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
     return List.generate(6, (index) => chars[random.nextInt(chars.length)]).join();
   }
 
+  Future<String?> _showAccessCodeDialog(SyncDevice device) async {
+    final codeController = TextEditingController();
+    String? errorText;
+
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Row(
+                children: [
+                  const Icon(Icons.lock_outline_rounded, color: Color(0xFF4E6AF3)),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Enter Access Code',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Enter the access code displayed on ${device.name}:',
+                    style: const TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: codeController,
+                    keyboardType: TextInputType.text,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: 'Access Code',
+                      errorText: errorText,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      prefixIcon: const Icon(Icons.key_rounded),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, null),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final code = codeController.text.trim();
+                    if (code.isEmpty) {
+                      setDialogState(() {
+                        errorText = 'Code cannot be empty';
+                      });
+                      return;
+                    }
+                    Navigator.pop(context, code);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4E6AF3),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Connect'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _browseDevice(SyncDevice device) async {
+    String? pin = _devicePins[device.ip];
+    if (pin == null || pin.isEmpty) {
+      pin = await _showAccessCodeDialog(device);
+      if (pin == null || pin.isEmpty) return; // User cancelled
+      _devicePins[device.ip] = pin;
+    }
+
     setState(() {
       _selectedDevice = device;
       _isBrowsingFiles = true;
       _currentRemotePath = '/';
     });
-    
+
     await _loadRemoteFiles('/');
+  }
+
+  void _navigateUp() {
+    if (_currentRemotePath == '/' || _currentRemotePath.isEmpty) {
+      setState(() {
+        _isBrowsingFiles = false;
+        _selectedDevice = null;
+        _remoteFiles.clear();
+      });
+    } else {
+      final parent = p.dirname(_currentRemotePath);
+      if (parent == '.' || parent == _currentRemotePath) {
+        _loadRemoteFiles('/');
+      } else {
+        _loadRemoteFiles(parent);
+      }
+    }
   }
 
   Future<void> _loadRemoteFiles(String path) async {
     if (_selectedDevice == null) return;
-    
+    final pin = _devicePins[_selectedDevice!.ip] ?? '';
+
+    setState(() {
+      _isLoadingRemoteFiles = true;
+    });
+
     try {
-      final response = await http.get(
-        Uri.parse('http://${_selectedDevice!.ip}:${_selectedDevice!.port}/api/files?path=$path&code=${_selectedDevice!.accessCode}'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(Duration(seconds: 10));
-      
+      final response = await http
+          .get(
+            Uri.parse(
+              'http://${_selectedDevice!.ip}:${_selectedDevice!.port}/api/files?path=$path&code=$pin',
+            ),
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(const Duration(seconds: 10));
+
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         setState(() {
-          _remoteFiles = data.map((item) => RemoteFileInfo.fromJson(item)).toList();
+          _remoteFiles =
+              data.map((item) => RemoteFileInfo.fromJson(item)).toList();
           _currentRemotePath = path;
+        });
+      } else if (response.statusCode == 403) {
+        _devicePins.remove(_selectedDevice!.ip);
+        _showErrorSnackBar('Invalid Access Code for ${_selectedDevice!.name}');
+        setState(() {
+          _isBrowsingFiles = false;
+          _selectedDevice = null;
         });
       } else {
         _showErrorSnackBar('Failed to load files: ${response.statusCode}');
       }
     } catch (e) {
       _showErrorSnackBar('Error loading files: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingRemoteFiles = false;
+        });
+      }
     }
   }
 
@@ -538,7 +671,13 @@ class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
         _downloadQueue.add(downloadTask);
       });
       
-      final request = http.Request('GET', Uri.parse('http://${_selectedDevice!.ip}:${_selectedDevice!.port}/api/download?file=${Uri.encodeComponent(file.path)}&code=${_selectedDevice!.accessCode}'));
+      final pin = _devicePins[_selectedDevice!.ip] ?? '';
+      final request = http.Request(
+        'GET',
+        Uri.parse(
+          'http://${_selectedDevice!.ip}:${_selectedDevice!.port}/api/download?file=${Uri.encodeComponent(file.path)}&code=$pin',
+        ),
+      );
       final response = await http.Client().send(request);
       
       if (response.statusCode == 200) {
@@ -1061,152 +1200,239 @@ class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildFileBrowser() {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_selectedDevice?.name ?? 'Device'),
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            setState(() {
-              _isBrowsingFiles = false;
-              _selectedDevice = null;
-              _remoteFiles.clear();
-            });
-          },
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => _loadRemoteFiles(_currentRemotePath),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _navigateUp();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_selectedDevice?.name ?? 'Device'),
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: _navigateUp,
+            tooltip: 'Go back',
           ),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Path indicator
-            if (_currentRemotePath != '/')
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _isLoadingRemoteFiles
+                  ? null
+                  : () => _loadRemoteFiles(_currentRemotePath),
+              tooltip: 'Refresh files',
+            ),
+          ],
+        ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Path indicator
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 color: Theme.of(context).brightness == Brightness.dark
                     ? Colors.grey[850]
                     : Colors.grey[100],
-                child: Text(
-                  _currentRemotePath,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.folder_open_rounded,
+                      size: 16,
+                      color: Color(0xFF4E6AF3),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _currentRemotePath,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.grey[300]
+                              : Colors.grey[700],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            
-            // File list
-            Expanded(
-              child: _remoteFiles.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.folder_open,
-                            size: 64,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No files found',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 16,
+
+              // File list / Loading / Empty State
+              Expanded(
+                child: _isLoadingRemoteFiles
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const CircularProgressIndicator(
+                              color: Color(0xFF4E6AF3),
                             ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(8),
-                      itemCount: _remoteFiles.length,
-                      itemBuilder: (context, index) {
-                        final file = _remoteFiles[index];
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 4),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            leading: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: file.isDirectory
-                                    ? const Color(0xFF4E6AF3).withValues(alpha: 0.1)
-                                    : _getFileIconColor(file.type).withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                file.isDirectory 
-                                    ? Icons.folder 
-                                    : _getFileIcon(file.type),
-                                color: file.isDirectory 
-                                    ? const Color(0xFF4E6AF3) 
-                                    : _getFileIconColor(file.type),
-                                size: 20,
-                              ),
-                            ),
-                            title: Text(
-                              file.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
+                            const SizedBox(height: 16),
+                            Text(
+                              'Loading files...',
+                              style: TextStyle(
+                                color: Colors.grey[600],
                                 fontSize: 14,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
-                            subtitle: file.isDirectory
-                                ? const Text(
-                                    'Folder',
-                                    style: TextStyle(fontSize: 12),
-                                  )
-                                : Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        _formatFileSize(file.size),
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
-                                      Text(
-                                        _formatDate(file.modified),
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.grey[500],
-                                        ),
-                                      ),
-                                    ],
+                          ],
+                        ),
+                      )
+                    : _remoteFiles.isEmpty && _currentRemotePath == '/'
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.folder_open,
+                                  size: 64,
+                                  color: Colors.grey[400],
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'No files found',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 16,
                                   ),
-                            trailing: file.isDirectory
-                                ? const Icon(
-                                    Icons.chevron_right,
-                                    color: Color(0xFF4E6AF3),
-                                  )
-                                : IconButton(
-                                    icon: const Icon(
-                                      Icons.download,
-                                      color: Color(0xFF2AB673),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(8),
+                            itemCount: _currentRemotePath != '/'
+                                ? _remoteFiles.length + 1
+                                : _remoteFiles.length,
+                            itemBuilder: (context, index) {
+                              if (_currentRemotePath != '/' && index == 0) {
+                                return Card(
+                                  margin: const EdgeInsets.only(bottom: 6),
+                                  child: ListTile(
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 4,
                                     ),
-                                    onPressed: () => _downloadFile(file),
+                                    leading: Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF4E6AF3)
+                                            .withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(
+                                        Icons.arrow_upward_rounded,
+                                        color: Color(0xFF4E6AF3),
+                                        size: 20,
+                                      ),
+                                    ),
+                                    title: const Text(
+                                      '.. (Parent Directory)',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    onTap: _navigateUp,
                                   ),
-                            onTap: file.isDirectory
-                                ? () => _loadRemoteFiles(file.path)
-                                : null,
+                                );
+                              }
+
+                              final fileIndex = _currentRemotePath != '/'
+                                  ? index - 1
+                                  : index;
+                              final file = _remoteFiles[fileIndex];
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 4),
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  leading: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: file.isDirectory
+                                          ? const Color(0xFF4E6AF3).withValues(
+                                              alpha: 0.1,
+                                            )
+                                          : _getFileIconColor(file.type)
+                                              .withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      file.isDirectory
+                                          ? Icons.folder
+                                          : _getFileIcon(file.type),
+                                      color: file.isDirectory
+                                          ? const Color(0xFF4E6AF3)
+                                          : _getFileIconColor(file.type),
+                                      size: 20,
+                                    ),
+                                  ),
+                                  title: Text(
+                                    file.name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  subtitle: file.isDirectory
+                                      ? const Text(
+                                          'Folder',
+                                          style: TextStyle(fontSize: 12),
+                                        )
+                                      : Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              _formatFileSize(file.size),
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                            Text(
+                                              _formatDate(file.modified),
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.grey[500],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                  trailing: file.isDirectory
+                                      ? const Icon(
+                                          Icons.chevron_right,
+                                          color: Color(0xFF4E6AF3),
+                                        )
+                                      : IconButton(
+                                          icon: const Icon(
+                                            Icons.download,
+                                            color: Color(0xFF2AB673),
+                                          ),
+                                          onPressed: () => _downloadFile(file),
+                                        ),
+                                  onTap: file.isDirectory
+                                      ? () => _loadRemoteFiles(file.path)
+                                      : null,
+                                ),
+                              );
+                            },
                           ),
-                        );
-                      },
-                    ),
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );

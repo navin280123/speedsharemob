@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-import 'package:intl/intl.dart';
 import 'package:speedsharemob/FileSenderScreen.dart';
 import 'package:speedsharemob/ReceiveScreen.dart';
 import 'package:speedsharemob/SettingsScreen.dart';
@@ -409,51 +408,6 @@ class _MainScreenState extends State<MainScreen>
                                 ),
                               ),
                             ],
-                          ),
-
-                          const SizedBox(height: 24),
-
-                          // Date and time
-                          Center(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color:
-                                    Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? Colors.grey[800]
-                                        : Colors.grey[200],
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: StreamBuilder<String>(
-                                stream: Stream.periodic(
-                                  const Duration(seconds: 1),
-                                  (_) => DateFormat(
-                                    'MMM dd, HH:mm:ss',
-                                  ).format(DateTime.now()),
-                                ),
-                                initialData: DateFormat(
-                                  'MMM dd, HH:mm:ss',
-                                ).format(DateTime.now()),
-                                builder: (context, snapshot) {
-                                  return Text(
-                                    snapshot.data!,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color:
-                                          Theme.of(context).brightness ==
-                                                  Brightness.dark
-                                              ? Colors.white
-                                              : Colors.black87,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
                           ),
                         ],
                       ),

@@ -14,13 +14,9 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  // User settings
-  DateTime expiryDate = DateTime(2029, 5, 15);
-  
   // App settings
   String downloadPath = '';
   bool darkMode = false;
-  bool autoStart = false;
   bool showNotifications = true;
   int port = 8080;
   String deviceName = '';
@@ -62,7 +58,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() {
         deviceName = prefs.getString('deviceName') ?? Platform.localHostname;
         darkMode = prefs.getBool('darkMode') ?? false;
-        autoStart = prefs.getBool('autoStart') ?? false;
         showNotifications = prefs.getBool('showNotifications') ?? true;
         port = prefs.getInt('port') ?? 8080;
         downloadPath = prefs.getString('downloadPath') ?? speedsharePath;
@@ -84,7 +79,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       
       await prefs.setString('deviceName', deviceName);
       await prefs.setBool('darkMode', darkMode);
-      await prefs.setBool('autoStart', autoStart);
       await prefs.setBool('showNotifications', showNotifications);
       await prefs.setInt('port', port);
       await prefs.setString('downloadPath', downloadPath);
@@ -401,29 +395,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                                        deviceName,
+                    deviceName,
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2AB673),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'Active',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
                   ),
                 ],
               ),
@@ -770,18 +748,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   Text(
                     'Version 1.0.0',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.grey[400]
-                          : Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Current date (live)
-                  Text(
-                    'Build: v1.0.0',
                     style: TextStyle(
                       fontSize: 12,
                       color: Theme.of(context).brightness == Brightness.dark
