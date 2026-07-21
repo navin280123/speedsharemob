@@ -25,7 +25,7 @@
 Speed Share operates using peer-to-peer (P2P) local networking patterns:
 
 1. **Service Discovery (UDP Broadcast):** Devices announce their presence on the local subnet by broadcasting UDP packets (on port `8083`). This allows instances of Speed Share to automatically discover each other without manual IP entry.
-2. **File Server (HTTP Server):** When sharing files or directories, the sending device spins up a lightweight, local HTTP server (`HttpServer` from `dart:io` on port `8082`).![Uploading ChatGPT Image Jun 23, 2026, 09_30_13 PM.png…]()
+2. **File Server (HTTP Server):** When sharing files or directories, the sending device spins up a lightweight, local HTTP server (`HttpServer` from `dart:io` on port `8082`).
 
 3. **File Transfer (HTTP Clients):** The receiving device requests the files via HTTP GET requests. High-speed streams pipe file bytes directly from host disk to receiver disk, showing real-time progress bars.
 
