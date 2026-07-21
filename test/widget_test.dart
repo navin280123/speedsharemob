@@ -19,7 +19,7 @@ void main() {
     
     // Build our app and trigger a frame
     await tester.pumpWidget(const MyApp(darkMode: false));
-    await tester.pumpAndSettle(); // Wait for animations to complete
+    await tester.pump(const Duration(milliseconds: 500)); // Wait for animations to complete
 
     // Verify that the app title appears
     expect(find.text('SpeedShare'), findsOneWidget);
@@ -32,20 +32,20 @@ void main() {
     
     // Test navigation
     await tester.tap(find.text('Send'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Select Files'), findsWidgets);
     
     await tester.tap(find.text('Receive'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Receive Files'), findsOneWidget);
     
     await tester.tap(find.text('Settings'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Settings'), findsWidgets);
     
     // Go back to home
     await tester.tap(find.text('Home'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Welcome to SpeedShare'), findsOneWidget);
 
   });

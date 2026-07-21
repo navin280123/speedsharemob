@@ -57,7 +57,7 @@ class DeveloperDetailsScreen extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(24),
                     ),
-                    shadowColor: Colors.black.withOpacity(0.2),
+                    shadowColor: Colors.black.withValues(alpha: 0.2),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
                       child: Column(
@@ -72,16 +72,23 @@ class DeveloperDetailsScreen extends StatelessWidget {
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF4E6AF3).withOpacity(0.3),
+                                  color: const Color(0xFF4E6AF3).withValues(alpha: 0.3),
                                   blurRadius: 16,
                                   offset: const Offset(0, 8),
                                 ),
                               ],
                             ),
-                            child: const CircleAvatar(
-                              radius: 54,
-                              backgroundImage: NetworkImage(
+                            child: ClipOval(
+                              child: Image.network(
                                 'https://avatars.githubusercontent.com/u/103583078?s=400&u=80572f8430b374171aaa46ee2d9c67c3b62c3b65&v=4',
+                                width: 108,
+                                height: 108,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => const CircleAvatar(
+                                  radius: 54,
+                                  backgroundColor: Color(0xFF4E6AF3),
+                                  child: Icon(Icons.person, size: 54, color: Colors.white),
+                                ),
                               ),
                             ),
                           ),
@@ -107,7 +114,7 @@ class DeveloperDetailsScreen extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             decoration: BoxDecoration(
-                              color: (isDark ? const Color(0xFF4E6AF3) : const Color(0xFF2AB673)).withOpacity(0.1),
+                              color: (isDark ? const Color(0xFF4E6AF3) : const Color(0xFF2AB673)).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(
@@ -152,7 +159,7 @@ class DeveloperDetailsScreen extends StatelessWidget {
                                   Container(
                                     padding: const EdgeInsets.all(10),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF4E6AF3).withOpacity(0.1),
+                                      color: const Color(0xFF4E6AF3).withValues(alpha: 0.1),
                                       shape: BoxShape.circle,
                                     ),
                                     child: const Icon(
@@ -268,7 +275,7 @@ class DeveloperDetailsScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(

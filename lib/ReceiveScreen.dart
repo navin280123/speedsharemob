@@ -54,8 +54,6 @@ class _ReceiveScreenState extends State<ReceiveScreen>
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
-
-    _animationController.repeat(reverse: true);
   }
   Future<void> _checkPermissionsAndStart() async {
   bool hasPermissions = await PermissionManager().requestAppPermissions();
@@ -230,6 +228,7 @@ class _ReceiveScreenState extends State<ReceiveScreen>
         isReceiving = true;
         isReceivingAnimation = true;
       });
+      _animationController.repeat(reverse: true);
 
       _startAnnouncing();
 
@@ -447,6 +446,8 @@ class _ReceiveScreenState extends State<ReceiveScreen>
         isReceiving = false;
         isReceivingAnimation = false;
       });
+      _animationController.stop();
+      _animationController.reset();
     }
   }
 
@@ -454,6 +455,8 @@ class _ReceiveScreenState extends State<ReceiveScreen>
     _stopAnnouncing();
     serverSocket?.close();
     _discoverySocket?.close();
+    _animationController.stop();
+    _animationController.reset();
     setState(() {
       isReceiving = false;
       isReceivingAnimation = false;

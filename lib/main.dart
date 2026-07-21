@@ -19,8 +19,8 @@ class MyApp extends StatefulWidget {
 
   const MyApp({super.key, required this.darkMode});
 
-  /// Global key to access _MyAppState from anywhere (e.g., SettingsScreen)
-  static final GlobalKey<_MyAppState> appKey = GlobalKey<_MyAppState>();
+  /// Global key to access MyAppState from anywhere (e.g., SettingsScreen)
+  static final GlobalKey<MyAppState> appKey = GlobalKey<MyAppState>();
 
   /// Convenience method to update dark mode from anywhere
   static void updateDarkMode(bool isDark) {
@@ -28,10 +28,10 @@ class MyApp extends StatefulWidget {
   }
 
   @override
-  State<MyApp> createState() => _MyAppState();
+  State<MyApp> createState() => MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class MyAppState extends State<MyApp> {
   late bool _darkMode;
 
   @override
