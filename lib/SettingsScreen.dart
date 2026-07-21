@@ -7,8 +7,10 @@ import 'package:speedsharemob/DeveloperDetailsScreen.dart';
 import 'dart:io';
 
 class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key});
+
   @override
-  _SettingsScreenState createState() => _SettingsScreenState();
+  State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
@@ -69,7 +71,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         loading = false;
       });
     } catch (e) {
-      print('Error loading settings: $e');
+      debugPrint('Error loading settings: $e');
       setState(() {
         loading = false;
       });
@@ -88,6 +90,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await prefs.setString('downloadPath', downloadPath);
       await prefs.setBool('saveHistory', saveHistory);
       
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -104,7 +107,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       );
     } catch (e) {
-      print('Error saving settings: $e');
+      debugPrint('Error saving settings: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -133,7 +137,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         });
       }
     } catch (e) {
-      print('Error selecting folder: $e');
+      debugPrint('Error selecting folder: $e');
     }
   }
 
@@ -162,12 +166,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
               Navigator.of(context).pop();
               final prefs = await SharedPreferences.getInstance();
               await prefs.clear();
               await _loadSettings();
               
-              ScaffoldMessenger.of(context).showSnackBar(
+              messenger.showSnackBar(
                 SnackBar(
                   content: Row(
                     children: [
@@ -363,7 +368,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF4E6AF3).withOpacity(0.3),
+                    color: const Color(0xFF4E6AF3).withValues(alpha: 0.3),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),
@@ -441,7 +446,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF4E6AF3).withOpacity(0.1),
+                    color: const Color(0xFF4E6AF3).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -518,7 +523,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Switch(
           value: value,
           onChanged: onChanged,
-          activeColor: const Color(0xFF2AB673),
+          activeTrackColor: const Color(0xFF2AB673),
         ),
       ],
     );
@@ -645,7 +650,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color: Colors.grey.withOpacity(0.5),
+                    color: Colors.grey.withValues(alpha: 0.5),
                   ),
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -661,10 +666,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     TextButton(
                       onPressed: _selectDownloadFolder,
-                      child: const Text('Browse'),
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
                       ),
+                      child: const Text('Browse'),
                     ),
                   ],
                 ),
@@ -678,7 +683,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   
   Widget _buildAboutSection() {
     // Helper to show dialogs for Privacy Policy and Terms
-    void _showInfoDialog(String title, String content) {
+    void showInfoDialog(String title, String content) {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -706,7 +711,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF4E6AF3).withOpacity(0.1),
+                    color: const Color(0xFF4E6AF3).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
@@ -742,7 +747,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF4E6AF3).withOpacity(0.3),
+                          color: const Color(0xFF4E6AF3).withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 3),
                         ),
@@ -801,7 +806,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       TextButton(
                         onPressed: () {
-                          _showInfoDialog(
+                          showInfoDialog(
                             'Privacy Policy',
                             'Privacy Policy\n\n'
                             'Last updated: May 19, 2025\n\n'
@@ -828,7 +833,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Text('•', style: TextStyle(color: Colors.grey)),
                       TextButton(
                         onPressed: () {
-                          _showInfoDialog(
+                          showInfoDialog(
                             'Terms of Service',
                             'Terms of Service\n\n'
                             'Last updated: May 19, 2025\n\n'
@@ -862,7 +867,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF2AB673).withOpacity(0.1),
+                        color: const Color(0xFF2AB673).withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(

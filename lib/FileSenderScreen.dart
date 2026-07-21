@@ -7,14 +7,17 @@ import 'package:flutter/material.dart';
 import 'package:mime/mime.dart';
 import 'package:lottie/lottie.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speedsharemob/PermissionManager.dart';
 
 class FileSenderScreen extends StatefulWidget {
+  const FileSenderScreen({super.key});
+
   @override
-  _FileSenderScreenState createState() => _FileSenderScreenState();
+  State<FileSenderScreen> createState() => FileSenderScreenState();
 }
 
-class _FileSenderScreenState extends State<FileSenderScreen>
+class FileSenderScreenState extends State<FileSenderScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   bool _isSending = false;
@@ -55,11 +58,10 @@ class _FileSenderScreenState extends State<FileSenderScreen>
     _controller.forward();
     _checkPermissionsAndStart();
 
-    _discoveryTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+    _discoveryTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       if (mounted) startScanning();
     });
 
-    _filteredReceivers = availableReceivers;
   }
 
   Future<void> _checkPermissionsAndStart() async {
@@ -124,7 +126,7 @@ class _FileSenderScreenState extends State<FileSenderScreen>
           reuseAddress: true, // Only use reuseAddress
         );
       } catch (e) {
-        print('Socket binding error: $e');
+        debugPrint('Socket binding error: $e');
         // Try binding without any options
         _discoverySocket = await RawDatagramSocket.bind(
           InternetAddress.anyIPv4,
@@ -169,7 +171,7 @@ class _FileSenderScreenState extends State<FileSenderScreen>
           // Ignore expected "No route to host" / "Network unreachable" on inactive virtual interfaces
           return;
         }
-        print('UDP discovery socket error: $e');
+        debugPrint('UDP discovery socket error: $e');
       });
 
       // Send discovery messages with error handling
@@ -212,7 +214,7 @@ class _FileSenderScreenState extends State<FileSenderScreen>
                   final ownAddress = InternetAddress(addr.address);
                   _discoverySocket!.send(message, ownAddress, 8081);
                 } catch (e) {
-                  print('Failed to send to own address: $e');
+                  debugPrint('Failed to send to own address: $e');
                 }
 
                 // Try gateway and a few specific IPs
@@ -230,14 +232,14 @@ class _FileSenderScreenState extends State<FileSenderScreen>
                     );
                   }
                 } catch (e) {
-                  print('Failed to send to specific IPs: $e');
+                  debugPrint('Failed to send to specific IPs: $e');
                 }
               }
             }
           }
         }
       } catch (e) {
-        print('Network interface error: $e');
+        debugPrint('Network interface error: $e');
       }
 
       // Set a timeout to check results
@@ -254,7 +256,7 @@ class _FileSenderScreenState extends State<FileSenderScreen>
         }
       });
     } catch (e) {
-      print('UDP discovery error: $e');
+      debugPrint('UDP discovery error: $e');
       if (mounted) checkDirectTCPConnections();
     }
   }
@@ -281,7 +283,7 @@ class _FileSenderScreenState extends State<FileSenderScreen>
         }
       }
     } catch (e) {
-      print('TCP discovery error: $e');
+      debugPrint('TCP discovery error: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -295,9 +297,11 @@ class _FileSenderScreenState extends State<FileSenderScreen>
   Future<void> checkReceiver(String ip) async {
     Socket? sock;
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final targetPort = prefs.getInt('port') ?? 8080;
       sock = await Socket.connect(
         ip,
-        8080,
+        targetPort,
         timeout: const Duration(milliseconds: 500),
       );
 
@@ -318,7 +322,7 @@ class _FileSenderScreenState extends State<FileSenderScreen>
           }
         }
       }, onError: (e) {
-        print('Socket error during receiver check: $e');
+        debugPrint('Socket error during receiver check: $e');
         if (!completer.isCompleted) {
           completer.complete(null);
         }
@@ -367,13 +371,15 @@ class _FileSenderScreenState extends State<FileSenderScreen>
       _currentStep = 3;
     });
     try {
-      socket = await Socket.connect(ip, 8080, timeout: Duration(seconds: 5));
+      final prefs = await SharedPreferences.getInstance();
+      final targetPort = prefs.getInt('port') ?? 8080;
+      socket = await Socket.connect(ip, targetPort, timeout: const Duration(seconds: 5));
 
       String deviceName = name ?? '';
-      bool _waitingForDeviceName = deviceName.isEmpty;
+      bool waitingForDeviceName = deviceName.isEmpty;
       Completer<String>? nameCompleter;
 
-      if (_waitingForDeviceName) {
+      if (waitingForDeviceName) {
         nameCompleter = Completer<String>();
       }
 
@@ -383,9 +389,9 @@ class _FileSenderScreenState extends State<FileSenderScreen>
           final message = utf8.decode(data);
 
           // Handle device name response
-          if (_waitingForDeviceName && message.startsWith('DEVICE_NAME:')) {
+          if (waitingForDeviceName && message.startsWith('DEVICE_NAME:')) {
             deviceName = message.replaceFirst('DEVICE_NAME:', '');
-            _waitingForDeviceName = false;
+            waitingForDeviceName = false;
             if (nameCompleter != null && !nameCompleter.isCompleted) {
               nameCompleter.complete(deviceName);
             }
@@ -585,10 +591,15 @@ class _FileSenderScreenState extends State<FileSenderScreen>
   }
 
   String _formatFileSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024)
+    if (bytes < 1024) {
+      return '$bytes B';
+    }
+    if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    }
+    if (bytes < 1024 * 1024 * 1024) {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
@@ -636,6 +647,7 @@ class _FileSenderScreenState extends State<FileSenderScreen>
           _isSending = false;
         });
       }
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -1076,7 +1088,7 @@ class _FileSenderScreenState extends State<FileSenderScreen>
                   isActive
                       ? [
                         BoxShadow(
-                          color: const Color(0xFF4E6AF3).withOpacity(0.3),
+                          color: const Color(0xFF4E6AF3).withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 3),
                         ),
@@ -1153,7 +1165,7 @@ class _FileSenderScreenState extends State<FileSenderScreen>
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF4E6AF3).withOpacity(0.1),
+                  color: const Color(0xFF4E6AF3).withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -1204,7 +1216,7 @@ class _FileSenderScreenState extends State<FileSenderScreen>
                 borderRadius: BorderRadius.circular(12),
               ),
               elevation: 2,
-              shadowColor: const Color(0xFF4E6AF3).withOpacity(0.3),
+              shadowColor: const Color(0xFF4E6AF3).withValues(alpha: 0.3),
             ),
           ),
           const SizedBox(height: 16),
@@ -1288,7 +1300,7 @@ class _FileSenderScreenState extends State<FileSenderScreen>
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: _getFileIconColor(file.type).withOpacity(0.1),
+                        color: _getFileIconColor(file.type).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
@@ -1358,7 +1370,7 @@ class _FileSenderScreenState extends State<FileSenderScreen>
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF4E6AF3).withOpacity(0.1),
+                  color: const Color(0xFF4E6AF3).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -1414,7 +1426,7 @@ class _FileSenderScreenState extends State<FileSenderScreen>
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.withOpacity(0.3)),
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
@@ -1522,7 +1534,7 @@ class _FileSenderScreenState extends State<FileSenderScreen>
                           margin: const EdgeInsets.only(bottom: 8),
                           color:
                               isSelected
-                                  ? const Color(0xFF4E6AF3).withOpacity(0.05)
+                                  ? const Color(0xFF4E6AF3).withValues(alpha: 0.05)
                                   : null,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -1553,7 +1565,7 @@ class _FileSenderScreenState extends State<FileSenderScreen>
                                           isSelected
                                               ? const Color(
                                                 0xFF4E6AF3,
-                                              ).withOpacity(0.2)
+                                              ).withValues(alpha: 0.2)
                                               : Theme.of(context).brightness ==
                                                   Brightness.dark
                                               ? Colors.grey[800]
@@ -1743,7 +1755,7 @@ class _FileSenderScreenState extends State<FileSenderScreen>
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF4E6AF3).withOpacity(0.1),
+                  color: const Color(0xFF4E6AF3).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -1767,7 +1779,7 @@ class _FileSenderScreenState extends State<FileSenderScreen>
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      'From: ${_userLogin}',
+                      'From: $_userLogin',
                       style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                   ],
@@ -1852,7 +1864,7 @@ class _FileSenderScreenState extends State<FileSenderScreen>
                   margin: const EdgeInsets.only(bottom: 8),
                   color:
                       isCurrentFile
-                          ? const Color(0xFF4E6AF3).withOpacity(0.05)
+                          ? const Color(0xFF4E6AF3).withValues(alpha: 0.05)
                           : null,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -1869,7 +1881,7 @@ class _FileSenderScreenState extends State<FileSenderScreen>
                               decoration: BoxDecoration(
                                 color: _getFileIconColor(
                                   file.type,
-                                ).withOpacity(0.1),
+                                ).withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Icon(
@@ -1908,7 +1920,7 @@ class _FileSenderScreenState extends State<FileSenderScreen>
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: statusColor.withOpacity(0.1),
+                                color: statusColor.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Row(

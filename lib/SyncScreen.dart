@@ -15,11 +15,13 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:speedsharemob/PermissionManager.dart';
 
 class SyncScreen extends StatefulWidget {
+  const SyncScreen({super.key});
+
   @override
-  _SyncScreenState createState() => _SyncScreenState();
+  State<SyncScreen> createState() => SyncScreenState();
 }
 
-class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
+class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
   // Storage Server
   HttpServer? _storageServer;
   RawDatagramSocket? _syncDiscoverySocket;
@@ -28,7 +30,7 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
   List<String> _sharedPaths = [];
   
   // Storage Browser
-  List<SyncDevice> _availableDevices = [];
+  final List<SyncDevice> _availableDevices = [];
   bool _isDiscovering = false;
   Timer? _discoveryTimer;
   
@@ -37,7 +39,7 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
   List<RemoteFileInfo> _remoteFiles = [];
   bool _isBrowsingFiles = false;
   String _currentRemotePath = '/';
-  List<DownloadTask> _downloadQueue = [];
+  final List<DownloadTask> _downloadQueue = [];
   
   // Animation
   late AnimationController _pulseController;
@@ -50,6 +52,15 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
     _initializeSync();
     _loadSettings();
     _startDiscovery();
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _discoveryTimer?.cancel();
+    _syncDiscoverySocket?.close();
+    _storageServer?.close(force: true);
+    super.dispose();
   }
 
   void _initializeAnimations() {
@@ -92,10 +103,10 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
           // Ignore expected "No route to host" / "Network unreachable" on inactive virtual interfaces
           return;
         }
-        print('Sync discovery socket error: $e');
+        debugPrint('Sync discovery socket error: $e');
       });
     } catch (e) {
-      print('Error initializing sync: $e');
+      debugPrint('Error initializing sync: $e');
     }
   }
 
@@ -120,7 +131,7 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
         });
       }
     } catch (e) {
-      print('Error handling sync discovery: $e');
+      debugPrint('Error handling sync discovery: $e');
     }
   }
 
@@ -154,7 +165,7 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
             defaultPaths.add(documentsDir.path);
           }
         } catch (e) {
-          print('Error getting default directories: $e');
+          debugPrint('Error getting default directories: $e');
         }
         
         setState(() {
@@ -166,7 +177,7 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
         });
       }
     } catch (e) {
-      print('Error loading sync settings: $e');
+      debugPrint('Error loading sync settings: $e');
     }
   }
 
@@ -175,7 +186,7 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setStringList('sync_shared_paths', _sharedPaths);
     } catch (e) {
-      print('Error saving sync settings: $e');
+      debugPrint('Error saving sync settings: $e');
     }
   }
 
@@ -224,7 +235,7 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
         }
       }
     } catch (e) {
-      print('Error sending sync announcement: $e');
+      debugPrint('Error sending sync announcement: $e');
     }
   }
 
@@ -256,7 +267,7 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
       _storageServer!.listen(
         _handleStorageRequest,
         onError: (e) {
-          print('Storage server error: $e');
+          debugPrint('Storage server error: $e');
         },
       );
       
@@ -341,7 +352,7 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
         await request.response.close();
       }
     } catch (e) {
-      print('Error handling storage request: $e');
+      debugPrint('Error handling storage request: $e');
       request.response.statusCode = 500;
       await request.response.close();
     }
@@ -611,15 +622,6 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
   }
 
   @override
-  void dispose() {
-    _pulseController.dispose();
-    _discoveryTimer?.cancel();
-    _storageServer?.close();
-    _syncDiscoverySocket?.close();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     if (_isBrowsingFiles && _selectedDevice != null) {
       return _buildFileBrowser();
@@ -671,8 +673,8 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: _isStorageSharing 
-                          ? const Color(0xFF2AB673).withOpacity(0.1)
-                          : Colors.grey.withOpacity(0.1),
+                          ? const Color(0xFF2AB673).withValues(alpha: 0.1)
+                          : Colors.grey.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
@@ -732,7 +734,7 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF4E6AF3).withOpacity(0.1),
+                  color: const Color(0xFF4E6AF3).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -817,7 +819,7 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF4E6AF3).withOpacity(0.1),
+                    color: const Color(0xFF4E6AF3).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
@@ -930,7 +932,7 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
                             leading: Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF2AB673).withOpacity(0.1),
+                                color: const Color(0xFF2AB673).withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Icon(
@@ -1140,8 +1142,8 @@ class _SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color: file.isDirectory
-                                    ? const Color(0xFF4E6AF3).withOpacity(0.1)
-                                    : _getFileIconColor(file.type).withOpacity(0.1),
+                                    ? const Color(0xFF4E6AF3).withValues(alpha: 0.1)
+                                    : _getFileIconColor(file.type).withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Icon(

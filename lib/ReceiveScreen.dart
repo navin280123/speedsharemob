@@ -9,14 +9,17 @@ import 'package:intl/intl.dart';
 import 'package:open_file/open_file.dart';
 import 'package:lottie/lottie.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speedsharemob/PermissionManager.dart';
 
 class ReceiveScreen extends StatefulWidget {
+  const ReceiveScreen({super.key});
+
   @override
-  _ReceiveScreenState createState() => _ReceiveScreenState();
+  State<ReceiveScreen> createState() => ReceiveScreenState();
 }
 
-class _ReceiveScreenState extends State<ReceiveScreen>
+class ReceiveScreenState extends State<ReceiveScreen>
     with SingleTickerProviderStateMixin {
   ServerSocket? serverSocket;
   RawDatagramSocket? _discoverySocket;
@@ -105,8 +108,8 @@ class _ReceiveScreenState extends State<ReceiveScreen>
       downloadDirectoryPath = speedsharePath;
     });
     _loadReceivedFiles(speedshareDirectory);
-  } catch (e) {
-    print('Error getting downloads directory: $e');
+    } catch (e) {
+      debugPrint('Error getting downloads directory: $e');
     // Fallback to app documents directory on any error
     try {
       final appDir = await getApplicationDocumentsDirectory();
@@ -144,7 +147,7 @@ class _ReceiveScreenState extends State<ReceiveScreen>
         receivedFiles = filesList;
       });
     } catch (e) {
-      print('Error loading received files: $e');
+      debugPrint('Error loading received files: $e');
     }
   }
 
@@ -167,7 +170,7 @@ class _ReceiveScreenState extends State<ReceiveScreen>
         }
       }
     } catch (e) {
-      print('Error getting IP address: $e');
+      debugPrint('Error getting IP address: $e');
     }
     setState(() {
       ipAddress = 'Not available';
@@ -190,7 +193,10 @@ class _ReceiveScreenState extends State<ReceiveScreen>
 
   void startReceiving() async {
     try {
-      serverSocket = await ServerSocket.bind(InternetAddress.anyIPv4, 8080);
+      final prefs = await SharedPreferences.getInstance();
+      final listenPort = prefs.getInt('port') ?? 8080;
+
+      serverSocket = await ServerSocket.bind(InternetAddress.anyIPv4, listenPort);
 
       _discoverySocket = await RawDatagramSocket.bind(
         InternetAddress.anyIPv4,
@@ -221,7 +227,7 @@ class _ReceiveScreenState extends State<ReceiveScreen>
           // Ignore expected "No route to host" / "Network unreachable" on inactive virtual interfaces
           return;
         }
-        print('UDP discovery socket error: $e');
+        debugPrint('UDP discovery socket error: $e');
       });
 
       setState(() {
@@ -232,6 +238,7 @@ class _ReceiveScreenState extends State<ReceiveScreen>
 
       _startAnnouncing();
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -259,6 +266,7 @@ class _ReceiveScreenState extends State<ReceiveScreen>
         int expectedFileSize = 0;
         String expectedFileName = '';
         File? fileForWrite;
+        IOSink? activeSink;
         int writtenFileBytes = 0;
 
         client.listen((data) async {
@@ -270,79 +278,65 @@ class _ReceiveScreenState extends State<ReceiveScreen>
                   Uint8List.fromList(data.sublist(0, 4)),
                 );
                 metadataSize = byteData.getInt32(0);
+                if (metadataSize <= 0 || metadataSize > 65536) {
+                  debugPrint('Invalid metadata size: $metadataSize');
+                  client.destroy();
+                  return;
+                }
                 if (data.length > 4) {
                   headerBuffer.addAll(data.sublist(4));
                 }
                 receivingHeaderSize = false;
-                if (headerBuffer.length >= metadataSize) {
-                  final metadataJson = utf8.decode(
-                    headerBuffer.sublist(0, metadataSize),
-                  );
-                  final metadata =
-                      json.decode(metadataJson) as Map<String, dynamic>;
-                  expectedFileName = sanitizeFileName(
-                    p.basename(metadata['fileName']),
-                  );
-                  expectedFileSize = metadata['fileSize'];
-                  writtenFileBytes = 0;
-                  receivedFileName = expectedFileName;
-                  fileSize = expectedFileSize;
-                  bytesReceived = 0;
-                  fileForWrite = File(
-                    '$downloadDirectoryPath/$expectedFileName',
-                  );
-                  if (await fileForWrite!.exists()) {
-                    await fileForWrite!.delete();
-                  }
-                  receivingMetadata = false;
-                  client.write('READY_FOR_FILE_DATA');
-                  if (headerBuffer.length > metadataSize) {
-                    final fileData = headerBuffer.sublist(metadataSize);
-                    fileForWrite!.writeAsBytesSync(
-                      fileData,
-                      mode: FileMode.append,
-                    );
-                    writtenFileBytes += fileData.length;
-                    bytesReceived = writtenFileBytes;
-                    setState(() {
-                      progress = writtenFileBytes / expectedFileSize;
-                    });
-                  }
-                }
               } else {
                 headerBuffer.addAll(data);
               }
             } else {
               headerBuffer.addAll(data);
-              if (headerBuffer.length >= metadataSize) {
-                final metadataJson = utf8.decode(
-                  headerBuffer.sublist(0, metadataSize),
-                );
-                final metadata =
-                    json.decode(metadataJson) as Map<String, dynamic>;
-                expectedFileName = sanitizeFileName(
-                  p.basename(metadata['fileName']),
-                );
-                expectedFileSize = metadata['fileSize'];
-                writtenFileBytes = 0;
-                receivedFileName = expectedFileName;
-                fileSize = expectedFileSize;
-                bytesReceived = 0;
-                fileForWrite = File('$downloadDirectoryPath/$expectedFileName');
-                if (await fileForWrite!.exists()) {
-                  await fileForWrite!.delete();
+            }
+
+            if (!receivingHeaderSize && headerBuffer.length >= metadataSize) {
+              final metadataJson = utf8.decode(
+                headerBuffer.sublist(0, metadataSize),
+              );
+              final metadata =
+                  json.decode(metadataJson) as Map<String, dynamic>;
+              expectedFileName = sanitizeFileName(
+                p.basename(metadata['fileName']),
+              );
+              expectedFileSize = metadata['fileSize'];
+              writtenFileBytes = 0;
+              if (mounted) {
+                setState(() {
+                  receivedFileName = expectedFileName;
+                  fileSize = expectedFileSize;
+                  bytesReceived = 0;
+                });
+              }
+
+              // Auto-rename if file already exists
+              fileForWrite = File('$downloadDirectoryPath/$expectedFileName');
+              if (await fileForWrite!.exists()) {
+                String nameWithoutExt = p.basenameWithoutExtension(expectedFileName);
+                String ext = p.extension(expectedFileName);
+                int count = 1;
+                while (await fileForWrite!.exists()) {
+                  expectedFileName = '$nameWithoutExt ($count)$ext';
+                  fileForWrite = File('$downloadDirectoryPath/$expectedFileName');
+                  count++;
                 }
-                receivingMetadata = false;
-                client.write('READY_FOR_FILE_DATA');
-                if (headerBuffer.length > metadataSize) {
-                  final fileData = headerBuffer.sublist(metadataSize);
-                  fileForWrite!.writeAsBytesSync(
-                    fileData,
-                    mode: FileMode.append,
-                  );
-                  writtenFileBytes += fileData.length;
-                  bytesReceived = writtenFileBytes;
+              }
+
+              activeSink = fileForWrite!.openWrite(mode: FileMode.append);
+              receivingMetadata = false;
+              client.write('READY_FOR_FILE_DATA');
+
+              if (headerBuffer.length > metadataSize) {
+                final fileData = headerBuffer.sublist(metadataSize);
+                activeSink?.add(fileData);
+                writtenFileBytes += fileData.length;
+                if (mounted) {
                   setState(() {
+                    bytesReceived = writtenFileBytes;
                     progress = writtenFileBytes / expectedFileSize;
                   });
                 }
@@ -350,81 +344,96 @@ class _ReceiveScreenState extends State<ReceiveScreen>
             }
           } else {
             // This is file data
-            fileForWrite!.writeAsBytesSync(data, mode: FileMode.append);
+            activeSink?.add(data);
             writtenFileBytes += data.length;
-            bytesReceived = writtenFileBytes;
-            setState(() {
-              progress = writtenFileBytes / fileSize;
-            });
+            if (mounted) {
+              setState(() {
+                bytesReceived = writtenFileBytes;
+                progress = writtenFileBytes / fileSize;
+              });
+            }
+
             // File transfer complete
             if (writtenFileBytes >= fileSize) {
+              await activeSink?.flush();
+              await activeSink?.close();
+              activeSink = null;
+
               receivedFiles.insert(0, {
                 'name': expectedFileName,
                 'size': fileSize,
                 'path': fileForWrite!.path,
                 'date': DateTime.now().toString(),
               });
-                // Show a responsive SnackBar for file received
+
+              if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: LayoutBuilder(
-                  builder: (context, constraints) {
-                    bool isWide = constraints.maxWidth > 400;
-                    return Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      Icon(Icons.check_circle_rounded, color: Colors.white),
-                      SizedBox(width: 10),
-                      Expanded(
-                      child: Text(
-                        'File received: $expectedFileName',
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: isWide ? 2 : 1,
-                      ),
-                      ),
-                    ],
-                    );
-                  },
+                  SnackBar(
+                    content: LayoutBuilder(
+                      builder: (context, constraints) {
+                        bool isWide = constraints.maxWidth > 400;
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.check_circle_rounded, color: Colors.white),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'File received: $expectedFileName',
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: isWide ? 2 : 1,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                    backgroundColor: const Color(0xFF2AB673),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    margin: const EdgeInsets.all(20),
+                    action: SnackBarAction(
+                      label: 'Open',
+                      textColor: Colors.white,
+                      onPressed: () {
+                        _openFile(fileForWrite!.path);
+                      },
+                    ),
+                    duration: const Duration(seconds: 6),
                   ),
-                  backgroundColor: Color(0xFF2AB673),
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  ),
-                  margin: EdgeInsets.all(20),
-                  action: SnackBarAction(
-                  label: 'Open',
-                  textColor: Colors.white,
-                  onPressed: () {
-                    _openFile(fileForWrite!.path);
-                  },
-                  ),
-                  duration: Duration(seconds: 6),
-                ),
                 );
+              }
+
               client.write('TRANSFER_COMPLETE');
               receivedFile = null;
               receivingMetadata = true;
               receivingHeaderSize = true;
               headerBuffer = [];
-              setState(() {
-                receivedFileName = '';
-                fileSize = 0;
-                bytesReceived = 0;
-                progress = 0.0;
-              });
+              if (mounted) {
+                setState(() {
+                  receivedFileName = '';
+                  fileSize = 0;
+                  bytesReceived = 0;
+                  progress = 0.0;
+                });
+              }
             }
           }
         }, onError: (e) {
-          print('TCP client socket error: $e');
+          debugPrint('TCP client socket error: $e');
+          activeSink?.close();
           client.close();
         }, onDone: () {
+          activeSink?.close();
           client.close();
         });
       }, onError: (e) {
-        print('Server socket error: $e');
+        debugPrint('Server socket error: $e');
       });
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -486,6 +495,7 @@ class _ReceiveScreenState extends State<ReceiveScreen>
   void _openFile(String filePath) async {
     try {
       final result = await OpenFile.open(filePath);
+      if (!mounted) return;
       if (result.type != ResultType.done) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -505,6 +515,7 @@ class _ReceiveScreenState extends State<ReceiveScreen>
         );
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -534,6 +545,7 @@ class _ReceiveScreenState extends State<ReceiveScreen>
         Process.run('xdg-open', [downloadDirectoryPath]);
       } else {
         await Clipboard.setData(ClipboardData(text: downloadDirectoryPath));
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -552,6 +564,7 @@ class _ReceiveScreenState extends State<ReceiveScreen>
         );
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -573,6 +586,7 @@ class _ReceiveScreenState extends State<ReceiveScreen>
 
   void _copyIpToClipboard() async {
     await Clipboard.setData(ClipboardData(text: ipAddress));
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -594,10 +608,15 @@ class _ReceiveScreenState extends State<ReceiveScreen>
   }
 
   String _formatFileSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024)
+    if (bytes < 1024) {
+      return '$bytes B';
+    }
+    if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    }
+    if (bytes < 1024 * 1024 * 1024) {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
@@ -647,7 +666,7 @@ class _ReceiveScreenState extends State<ReceiveScreen>
           }
         }
       } catch (e) {
-        print('Announcement error: $e');
+        debugPrint('Announcement error: $e');
       }
     });
   }
@@ -725,7 +744,7 @@ class _ReceiveScreenState extends State<ReceiveScreen>
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF2AB673).withOpacity(0.3),
+                            color: const Color(0xFF2AB673).withValues(alpha: 0.3),
                             blurRadius: 6,
                             spreadRadius: 1,
                           ),
@@ -897,7 +916,7 @@ class _ReceiveScreenState extends State<ReceiveScreen>
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF4E6AF3).withOpacity(0.1),
+                    color: const Color(0xFF4E6AF3).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
@@ -1117,7 +1136,7 @@ class _ReceiveScreenState extends State<ReceiveScreen>
               children: [
                 const SizedBox(height: 4),
                 Text(
-                  '${_formatFileSize(file['size'])}',
+                  _formatFileSize(file['size']),
                   style: const TextStyle(fontSize: 12),
                 ),
                 Text(
@@ -1138,7 +1157,7 @@ class _ReceiveScreenState extends State<ReceiveScreen>
               tooltip: 'Open',
               iconSize: 18,
               style: IconButton.styleFrom(
-                backgroundColor: const Color(0xFF4E6AF3).withOpacity(0.1),
+                backgroundColor: const Color(0xFF4E6AF3).withValues(alpha: 0.1),
                 foregroundColor: const Color(0xFF4E6AF3),
               ),
             ),
@@ -1197,7 +1216,7 @@ class _ReceiveScreenState extends State<ReceiveScreen>
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: iconColor.withOpacity(0.1),
+        color: iconColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(iconData, color: iconColor, size: 24),
