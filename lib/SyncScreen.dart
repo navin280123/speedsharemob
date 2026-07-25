@@ -15,6 +15,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:speedsharemob/PermissionManager.dart';
 import 'package:speedsharemob/DeviceNameManager.dart';
 import 'package:speedsharemob/NetworkStatusWidget.dart';
+import 'package:speedsharemob/SpeedShareAppBar.dart';
 
 class SyncScreen extends StatefulWidget {
   const SyncScreen({super.key});
@@ -774,10 +775,10 @@ class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
     }
     
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Sync'),
-        elevation: 0,
-        backgroundColor: Colors.transparent,
+      appBar: const SpeedShareAppBar(
+        title: 'Storage Sync',
+        subtitle: 'Browse & share device storage',
+        icon: Icons.sync_rounded,
       ),
       body: SafeArea(
         child: Center(

@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speedsharemob/PermissionManager.dart';
 import 'package:speedsharemob/DeviceNameManager.dart';
 import 'package:speedsharemob/NetworkStatusWidget.dart';
+import 'package:speedsharemob/SpeedShareAppBar.dart';
 
 class FileSenderScreen extends StatefulWidget {
   const FileSenderScreen({super.key});
@@ -1053,16 +1054,10 @@ class FileSenderScreenState extends State<FileSenderScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Send Files'),
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        iconTheme: IconThemeData(
-          color:
-              Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white
-                  : Colors.black87,
-        ),
+      appBar: const SpeedShareAppBar(
+        title: 'Send Files',
+        subtitle: 'Share files across local network',
+        icon: Icons.send_rounded,
       ),
       body: SafeArea(
         child: Center(

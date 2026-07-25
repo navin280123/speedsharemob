@@ -11,6 +11,7 @@ import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speedsharemob/DeviceNameManager.dart';
 import 'package:speedsharemob/NetworkStatusWidget.dart';
+import 'package:speedsharemob/SpeedShareAppBar.dart';
 
 class ReceiveScreen extends StatefulWidget {
   const ReceiveScreen({super.key});
@@ -777,10 +778,10 @@ class ReceiveScreenState extends State<ReceiveScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Receive Files'),
-        elevation: 0,
-        backgroundColor: Colors.transparent,
+      appBar: const SpeedShareAppBar(
+        title: 'Receive Files',
+        subtitle: 'Wait for incoming file transfers',
+        icon: Icons.download_rounded,
       ),
       body: SafeArea(
         child: Center(

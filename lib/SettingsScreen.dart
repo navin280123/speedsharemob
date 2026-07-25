@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speedsharemob/main.dart';
 import 'package:speedsharemob/DeveloperDetailsScreen.dart';
 import 'package:speedsharemob/DeviceNameManager.dart';
+import 'package:speedsharemob/SpeedShareAppBar.dart';
 import 'dart:io';
 
 class SettingsScreen extends StatefulWidget {
@@ -210,10 +211,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-        elevation: 0,
-        backgroundColor: Colors.transparent,
+      appBar: const SpeedShareAppBar(
+        title: 'Settings',
+        subtitle: 'Preferences & network options',
+        icon: Icons.settings_rounded,
       ),
       body: SafeArea(
         child: Center(
