@@ -432,7 +432,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       setState(() {
                         deviceName = newName;
                       });
-                      if (mounted) Navigator.pop(context);
+                      if (!mounted || !context.mounted) return;
+                      Navigator.pop(context);
                       ScaffoldMessenger.of(context).clearSnackBars();
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
