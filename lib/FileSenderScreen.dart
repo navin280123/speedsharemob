@@ -17,7 +17,7 @@ class FileSenderScreen extends StatefulWidget {
 }
 
 class FileSenderScreenState extends State<FileSenderScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _controller;
   bool _isSending = false;
   double _progress = 0.0;
@@ -48,6 +48,7 @@ class FileSenderScreenState extends State<FileSenderScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     _controller = AnimationController(
       duration: const Duration(milliseconds: 400),
@@ -874,7 +875,18 @@ class FileSenderScreenState extends State<FileSenderScreen>
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.detached || state == AppLifecycleState.paused) {
+      _scanTimer?.cancel();
+      _discoveryTimer?.cancel();
+      _discoverySocket?.close();
+      socket?.close();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     _scanTimer?.cancel();
     _discoveryTimer?.cancel();

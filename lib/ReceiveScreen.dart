@@ -18,7 +18,7 @@ class ReceiveScreen extends StatefulWidget {
 }
 
 class ReceiveScreenState extends State<ReceiveScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   ServerSocket? serverSocket;
   RawDatagramSocket? _discoverySocket;
   Timer? _announcementTimer;
@@ -35,6 +35,13 @@ class ReceiveScreenState extends State<ReceiveScreen>
   bool isLoadingIp = true;
   bool isReceivingAnimation = false;
 
+  // Active in-progress download tracking for clean app termination
+  IOSink? _activeSink;
+  File? _activeTmpFile;
+  String? _finalDestinationPath;
+  int _activeWrittenBytes = 0;
+  int _activeExpectedFileSize = 0;
+
   // Animation controller
   late AnimationController _animationController;
   late Animation<double> _pulseAnimation;
@@ -43,6 +50,7 @@ class ReceiveScreenState extends State<ReceiveScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _getIpAddress();
     _getComputerName();
     _getDownloadsDirectory();
@@ -101,7 +109,24 @@ class ReceiveScreenState extends State<ReceiveScreen>
 
   void _loadReceivedFiles(Directory directory) async {
     try {
-      List<FileSystemEntity> files = await directory.list().toList();
+      List<FileSystemEntity> allEntities = await directory.list().toList();
+
+      // Clean up orphaned .speedshare_tmp files from previous killed sessions
+      for (var entity in allEntities) {
+        if (entity is File && entity.path.endsWith('.speedshare_tmp')) {
+          try {
+            await entity.delete();
+          } catch (e) {
+            debugPrint('Error deleting orphaned temp file ${entity.path}: $e');
+          }
+        }
+      }
+
+      // Re-fetch files excluding any remaining temp files
+      List<FileSystemEntity> files = (await directory.list().toList())
+          .where((f) => f is File && !f.path.endsWith('.speedshare_tmp'))
+          .toList();
+
       files.sort(
         (a, b) => b.statSync().modified.compareTo(a.statSync().modified),
       );
@@ -116,9 +141,11 @@ class ReceiveScreenState extends State<ReceiveScreen>
           });
         }
       }
-      setState(() {
-        receivedFiles = filesList;
-      });
+      if (mounted) {
+        setState(() {
+          receivedFiles = filesList;
+        });
+      }
     } catch (e) {
       debugPrint('Error loading received files: $e');
     }
@@ -240,8 +267,6 @@ class ReceiveScreenState extends State<ReceiveScreen>
         List<int> headerBuffer = [];
         int expectedFileSize = 0;
         String expectedFileName = '';
-        File? fileForWrite;
-        IOSink? activeSink;
         int writtenFileBytes = 0;
 
         client.listen((data) async {
@@ -280,6 +305,9 @@ class ReceiveScreenState extends State<ReceiveScreen>
               );
               expectedFileSize = metadata['fileSize'];
               writtenFileBytes = 0;
+              _activeExpectedFileSize = expectedFileSize;
+              _activeWrittenBytes = 0;
+
               if (mounted) {
                 setState(() {
                   receivedFileName = expectedFileName;
@@ -288,27 +316,41 @@ class ReceiveScreenState extends State<ReceiveScreen>
                 });
               }
 
-              // Auto-rename if file already exists
-              fileForWrite = File('$downloadDirectoryPath/$expectedFileName');
-              if (await fileForWrite!.exists()) {
+              // Compute target final path (with auto-renaming if file exists)
+              String finalPath = '$downloadDirectoryPath/$expectedFileName';
+              File targetFile = File(finalPath);
+              if (await targetFile.exists()) {
                 String nameWithoutExt = p.basenameWithoutExtension(expectedFileName);
                 String ext = p.extension(expectedFileName);
                 int count = 1;
-                while (await fileForWrite!.exists()) {
+                while (await targetFile.exists()) {
                   expectedFileName = '$nameWithoutExt ($count)$ext';
-                  fileForWrite = File('$downloadDirectoryPath/$expectedFileName');
+                  finalPath = '$downloadDirectoryPath/$expectedFileName';
+                  targetFile = File(finalPath);
                   count++;
                 }
               }
 
-              activeSink = fileForWrite!.openWrite(mode: FileMode.append);
+              _finalDestinationPath = finalPath;
+
+              // Write to temporary file until download completion
+              String tmpPath = '$finalPath.speedshare_tmp';
+              _activeTmpFile = File(tmpPath);
+              if (await _activeTmpFile!.exists()) {
+                try {
+                  await _activeTmpFile!.delete();
+                } catch (_) {}
+              }
+
+              _activeSink = _activeTmpFile!.openWrite(mode: FileMode.write);
               receivingMetadata = false;
               client.write('READY_FOR_FILE_DATA');
 
               if (headerBuffer.length > metadataSize) {
                 final fileData = headerBuffer.sublist(metadataSize);
-                activeSink?.add(fileData);
+                _activeSink?.add(fileData);
                 writtenFileBytes += fileData.length;
+                _activeWrittenBytes = writtenFileBytes;
                 if (mounted) {
                   setState(() {
                     bytesReceived = writtenFileBytes;
@@ -319,25 +361,33 @@ class ReceiveScreenState extends State<ReceiveScreen>
             }
           } else {
             // This is file data
-            activeSink?.add(data);
+            _activeSink?.add(data);
             writtenFileBytes += data.length;
+            _activeWrittenBytes = writtenFileBytes;
+
             if (mounted) {
               setState(() {
                 bytesReceived = writtenFileBytes;
-                progress = writtenFileBytes / fileSize;
+                progress = expectedFileSize > 0 ? writtenFileBytes / expectedFileSize : 0.0;
               });
             }
 
             // File transfer complete
-            if (writtenFileBytes >= fileSize) {
-              await activeSink?.flush();
-              await activeSink?.close();
-              activeSink = null;
+            if (writtenFileBytes >= expectedFileSize && expectedFileSize > 0) {
+              await _activeSink?.flush();
+              await _activeSink?.close();
+              _activeSink = null;
+
+              // Rename temporary file to final target filename
+              String savedPath = _finalDestinationPath ?? '$downloadDirectoryPath/$expectedFileName';
+              if (_activeTmpFile != null && await _activeTmpFile!.exists()) {
+                await _activeTmpFile!.rename(savedPath);
+              }
 
               receivedFiles.insert(0, {
                 'name': expectedFileName,
-                'size': fileSize,
-                'path': fileForWrite!.path,
+                'size': expectedFileSize,
+                'path': savedPath,
                 'date': DateTime.now().toString(),
               });
 
@@ -374,7 +424,7 @@ class ReceiveScreenState extends State<ReceiveScreen>
                       label: 'Open',
                       textColor: Colors.white,
                       onPressed: () {
-                        _openFile(fileForWrite!.path);
+                        _openFile(savedPath);
                       },
                     ),
                     duration: const Duration(seconds: 2, milliseconds: 500),
@@ -387,6 +437,11 @@ class ReceiveScreenState extends State<ReceiveScreen>
               receivingMetadata = true;
               receivingHeaderSize = true;
               headerBuffer = [];
+              _activeTmpFile = null;
+              _finalDestinationPath = null;
+              _activeWrittenBytes = 0;
+              _activeExpectedFileSize = 0;
+
               if (mounted) {
                 setState(() {
                   receivedFileName = '';
@@ -399,10 +454,14 @@ class ReceiveScreenState extends State<ReceiveScreen>
           }
         }, onError: (e) {
           debugPrint('TCP client socket error: $e');
-          activeSink?.close();
+          if (writtenFileBytes < expectedFileSize) {
+            _cleanupActiveDownload(deleteTempFile: true);
+          }
           client.close();
         }, onDone: () {
-          activeSink?.close();
+          if (writtenFileBytes < expectedFileSize) {
+            _cleanupActiveDownload(deleteTempFile: true);
+          }
           client.close();
         });
       }, onError: (e) {
@@ -438,7 +497,39 @@ class ReceiveScreenState extends State<ReceiveScreen>
     }
   }
 
+  Future<void> _cleanupActiveDownload({bool deleteTempFile = true}) async {
+    try {
+      if (_activeSink != null) {
+        await _activeSink?.close();
+        _activeSink = null;
+      }
+      if (deleteTempFile && _activeTmpFile != null) {
+        if (await _activeTmpFile!.exists()) {
+          await _activeTmpFile!.delete();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error cleaning up active download: $e');
+    } finally {
+      _activeSink = null;
+      _activeTmpFile = null;
+      _finalDestinationPath = null;
+      _activeWrittenBytes = 0;
+      _activeExpectedFileSize = 0;
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.detached || state == AppLifecycleState.paused) {
+      if (_activeWrittenBytes < _activeExpectedFileSize) {
+        _cleanupActiveDownload(deleteTempFile: true);
+      }
+    }
+  }
+
   void stopReceiving() {
+    _cleanupActiveDownload(deleteTempFile: true);
     _stopAnnouncing();
     serverSocket?.close();
     _discoverySocket?.close();
@@ -668,6 +759,8 @@ class ReceiveScreenState extends State<ReceiveScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _cleanupActiveDownload(deleteTempFile: true);
     _stopAnnouncing();
     _animationController.dispose();
     serverSocket?.close();
