@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speedsharemob/main.dart';
 import 'package:speedsharemob/DeveloperDetailsScreen.dart';
+import 'package:speedsharemob/DeviceNameManager.dart';
 import 'dart:io';
 
 class SettingsScreen extends StatefulWidget {
@@ -44,6 +45,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     
     try {
       final prefs = await SharedPreferences.getInstance();
+      final loadedDeviceName = await DeviceNameManager.getDeviceName();
 
       // getDownloadsDirectory() returns null on iOS — use a safe fallback
       Directory? downloadsDirectory = await getDownloadsDirectory();
@@ -56,7 +58,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
 
       setState(() {
-        deviceName = prefs.getString('deviceName') ?? Platform.localHostname;
+        deviceName = loadedDeviceName;
         darkMode = prefs.getBool('darkMode') ?? false;
         showNotifications = prefs.getBool('showNotifications') ?? true;
         port = prefs.getInt('port') ?? 8080;
@@ -354,65 +356,179 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
   
-  Widget _buildProfileSection() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: const Color(0xFF4E6AF3),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF4E6AF3).withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
+  void _showEditDeviceNameDialog() {
+    final controller = TextEditingController(text: deviceName);
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: const Row(
+                children: [
+                  Icon(Icons.edit_rounded, color: Color(0xFF4E6AF3)),
+                  SizedBox(width: 10),
+                  Text('Edit Device Name'),
                 ],
               ),
-              child: Center(
-                child: Text(
-                  deviceName.isNotEmpty 
-                      ? deviceName.substring(0, 1).toUpperCase() 
-                      : 'U',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Device Name',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
+                    'This name will be visible to other devices on your local network when sharing files.',
+                    style: TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      labelText: 'Device Name',
+                      hintText: 'Enter a name (e.g. Swift Falcon 42)',
+                      prefixIcon: const Icon(Icons.devices_rounded),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.casino_rounded),
+                        tooltip: 'Randomize Name',
+                        onPressed: () {
+                          setDialogState(() {
+                            controller.text = DeviceNameManager.generateRandomName();
+                          });
+                        },
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    deviceName,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () {
+                        setDialogState(() {
+                          controller.text = DeviceNameManager.generateRandomName();
+                        });
+                      },
+                      icon: const Icon(Icons.shuffle_rounded, size: 16),
+                      label: const Text('Generate Random Name'),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final newName = controller.text.trim();
+                    if (newName.isNotEmpty) {
+                      await DeviceNameManager.setDeviceName(newName);
+                      setState(() {
+                        deviceName = newName;
+                      });
+                      if (mounted) Navigator.pop(context);
+                      ScaffoldMessenger.of(context).clearSnackBars();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Device name updated to "$newName"'),
+                          backgroundColor: const Color(0xFF2AB673),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          margin: const EdgeInsets.all(20),
+                        ),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4E6AF3),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+  
+  Widget _buildProfileSection() {
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: _showEditDeviceNameDialog,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4E6AF3),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF4E6AF3).withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    deviceName.isNotEmpty 
+                        ? deviceName.substring(0, 1).toUpperCase() 
+                        : 'U',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Device Name',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      deviceName,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.edit_rounded, color: Color(0xFF4E6AF3)),
+                tooltip: 'Edit Device Name',
+                onPressed: _showEditDeviceNameDialog,
+              ),
+            ],
+          ),
         ),
       ),
     );

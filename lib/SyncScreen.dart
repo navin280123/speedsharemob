@@ -13,6 +13,7 @@ import 'package:path/path.dart' as p;
 import 'package:mime/mime.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:speedsharemob/PermissionManager.dart';
+import 'package:speedsharemob/DeviceNameManager.dart';
 
 class SyncScreen extends StatefulWidget {
   const SyncScreen({super.key});
@@ -204,9 +205,10 @@ class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
     if (_syncDiscoverySocket == null || !_isStorageSharing) return;
     
     try {
+      final deviceName = await DeviceNameManager.getDeviceName();
       final announcement = json.encode({
         'type': 'SPEEDSHARE_SYNC_ANNOUNCE',
-        'deviceName': Platform.localHostname,
+        'deviceName': deviceName,
         'storagePort': 8082,
         'accessCode': '', // PIN code is kept secret on host device
         'capabilities': ['storage_share', 'storage_browse'],

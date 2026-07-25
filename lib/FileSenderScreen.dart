@@ -8,6 +8,7 @@ import 'package:mime/mime.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speedsharemob/PermissionManager.dart';
+import 'package:speedsharemob/DeviceNameManager.dart';
 
 class FileSenderScreen extends StatefulWidget {
   const FileSenderScreen({super.key});
@@ -43,12 +44,13 @@ class FileSenderScreenState extends State<FileSenderScreen>
   String _searchQuery = '';
   List<ReceiverDevice> _filteredReceivers = [];
 
-  final String _userLogin = Platform.localHostname;
+  String _userLogin = '';
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _loadSenderDeviceName();
 
     _controller = AnimationController(
       duration: const Duration(milliseconds: 400),
@@ -62,6 +64,17 @@ class FileSenderScreenState extends State<FileSenderScreen>
       if (mounted) startScanning();
     });
 
+  }
+
+  void _loadSenderDeviceName() async {
+    try {
+      final name = await DeviceNameManager.getDeviceName();
+      if (mounted) {
+        setState(() {
+          _userLogin = name;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _checkPermissionsAndStart() async {

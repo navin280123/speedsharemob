@@ -1,11 +1,10 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:speedsharemob/FileSenderScreen.dart';
 import 'package:speedsharemob/ReceiveScreen.dart';
 import 'package:speedsharemob/SettingsScreen.dart';
 import 'package:speedsharemob/SyncScreen.dart';
+import 'package:speedsharemob/DeviceNameManager.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -53,15 +52,18 @@ class _MainScreenState extends State<MainScreen>
 
   void _getComputerName() async {
     try {
-      // For simplicity, using hostname as computer name
-      final hostname = Platform.localHostname;
-      setState(() {
-        computerName = hostname;
-      });
+      final name = await DeviceNameManager.getDeviceName();
+      if (mounted) {
+        setState(() {
+          computerName = name;
+        });
+      }
     } catch (e) {
-      setState(() {
-        computerName = 'Unknown Device';
-      });
+      if (mounted) {
+        setState(() {
+          computerName = 'SpeedShare Device';
+        });
+      }
     }
   }
 

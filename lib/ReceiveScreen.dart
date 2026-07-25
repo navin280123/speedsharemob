@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:open_file/open_file.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:speedsharemob/DeviceNameManager.dart';
 
 class ReceiveScreen extends StatefulWidget {
   const ReceiveScreen({super.key});
@@ -180,14 +181,18 @@ class ReceiveScreenState extends State<ReceiveScreen>
 
   void _getComputerName() async {
     try {
-      final hostname = Platform.localHostname;
-      setState(() {
-        computerName = hostname;
-      });
+      final name = await DeviceNameManager.getDeviceName();
+      if (mounted) {
+        setState(() {
+          computerName = name;
+        });
+      }
     } catch (e) {
-      setState(() {
-        computerName = 'Unknown Device';
-      });
+      if (mounted) {
+        setState(() {
+          computerName = 'SpeedShare Device';
+        });
+      }
     }
   }
 
