@@ -10,6 +10,7 @@ import 'package:open_file/open_file.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speedsharemob/DeviceNameManager.dart';
+import 'package:speedsharemob/NetworkStatusWidget.dart';
 
 class ReceiveScreen extends StatefulWidget {
   const ReceiveScreen({super.key});
@@ -790,8 +791,9 @@ class ReceiveScreenState extends State<ReceiveScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-              // Status section with IP and controls
-              _buildStatusSection(),
+                  NetworkStatusWidget(onRetry: _getIpAddress),
+                  // Status section with IP and controls
+                  _buildStatusSection(),
 
               // Current transfer if any
               if (receivedFileName.isNotEmpty)

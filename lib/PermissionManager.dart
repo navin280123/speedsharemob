@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
@@ -11,6 +11,153 @@ class PermissionManager {
 
   bool _isRequestingPermissions = false;
   Completer<bool>? _permissionCompleter;
+
+  /// Shows Google Play compliant prominent rationale dialog before requesting permissions
+  Future<bool> showPermissionRationaleDialog(BuildContext context) async {
+    if (!Platform.isAndroid && !Platform.isIOS) return true;
+
+    // Check if rationale is needed
+    bool hasPermissions = await checkPermissionsGranted();
+    if (hasPermissions) return true;
+
+    if (!context.mounted) return false;
+
+    bool? granted = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.shield_outlined, color: Color(0xFF4E6AF3)),
+              SizedBox(width: 10),
+              Text('Permissions Needed'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'To share files over local Wi-Fi and save incoming downloads, SpeedShare requires the following permissions:',
+                  style: TextStyle(fontSize: 13, color: Colors.grey),
+                ),
+                const SizedBox(height: 16),
+                _buildRationaleTile(
+                  icon: Icons.wifi_find_rounded,
+                  title: 'Nearby Devices & Location',
+                  description:
+                      'Used exclusively to discover and connect with nearby devices on your local Wi-Fi network.',
+                ),
+                const SizedBox(height: 12),
+                _buildRationaleTile(
+                  icon: Icons.folder_open_rounded,
+                  title: 'Storage & Media Access',
+                  description:
+                      'Used to select files to send and save received files directly to your Downloads folder.',
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4E6AF3).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    '🔒 Privacy First: Your location and files remain 100% private and are never uploaded to any cloud server.',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF4E6AF3)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4E6AF3),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Continue'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (granted == true) {
+      return await requestAppPermissions();
+    }
+    return false;
+  }
+
+  static Widget _buildRationaleTile({
+    required IconData icon,
+    required String title,
+    required String description,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF4E6AF3).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: const Color(0xFF4E6AF3), size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                description,
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Checks whether minimum permissions are already granted
+  Future<bool> checkPermissionsGranted() async {
+    if (!Platform.isAndroid && !Platform.isIOS) return true;
+    if (Platform.isIOS) return true;
+
+    try {
+      if (Platform.isAndroid) {
+        var locationStatus = await Permission.locationWhenInUse.status;
+        var nearbyStatus = await Permission.nearbyWifiDevices.status;
+        var storageStatus = await Permission.storage.status;
+        var photosStatus = await Permission.photos.status;
+
+        bool hasLocation = locationStatus.isGranted || nearbyStatus.isGranted;
+        bool hasStorage = storageStatus.isGranted || photosStatus.isGranted;
+        return hasLocation && hasStorage;
+      }
+    } catch (_) {}
+    return false;
+  }
 
   /// Requests necessary app permissions.
   /// On desktop (Windows/macOS/Linux), permissions are not required

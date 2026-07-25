@@ -5,6 +5,7 @@ import 'package:speedsharemob/ReceiveScreen.dart';
 import 'package:speedsharemob/SettingsScreen.dart';
 import 'package:speedsharemob/SyncScreen.dart';
 import 'package:speedsharemob/DeviceNameManager.dart';
+import 'package:speedsharemob/PermissionManager.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -32,6 +33,9 @@ class _MainScreenState extends State<MainScreen>
   void initState() {
     super.initState();
     _getComputerName();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      PermissionManager().showPermissionRationaleDialog(context);
+    });
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 400),
       vsync: this,

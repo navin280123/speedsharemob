@@ -14,6 +14,7 @@ import 'package:mime/mime.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:speedsharemob/PermissionManager.dart';
 import 'package:speedsharemob/DeviceNameManager.dart';
+import 'package:speedsharemob/NetworkStatusWidget.dart';
 
 class SyncScreen extends StatefulWidget {
   const SyncScreen({super.key});
@@ -786,6 +787,7 @@ class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
+              NetworkStatusWidget(),
               // Share Storage Card
               _buildShareStorageCard(),
               

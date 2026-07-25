@@ -9,6 +9,7 @@ import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speedsharemob/PermissionManager.dart';
 import 'package:speedsharemob/DeviceNameManager.dart';
+import 'package:speedsharemob/NetworkStatusWidget.dart';
 
 class FileSenderScreen extends StatefulWidget {
   const FileSenderScreen({super.key});
@@ -1069,6 +1070,7 @@ class FileSenderScreenState extends State<FileSenderScreen>
             constraints: const BoxConstraints(maxWidth: 800),
             child: Column(
               children: [
+            NetworkStatusWidget(onRetry: startScanning),
             // Step indicator
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
