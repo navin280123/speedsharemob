@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speedsharemob/DeviceNameManager.dart';
 import 'package:speedsharemob/NetworkStatusWidget.dart';
 import 'package:speedsharemob/SpeedShareAppBar.dart';
+import 'package:speedsharemob/NotificationService.dart';
 
 class ReceiveScreen extends StatefulWidget {
   const ReceiveScreen({super.key});
@@ -288,6 +289,15 @@ class ReceiveScreenState extends State<ReceiveScreen>
         int writtenFileBytes = 0;
 
         client.listen((data) async {
+          // Check for TCP discovery probe
+          final probeText = String.fromCharCodes(data);
+          if (probeText.startsWith('SPEEDSHARE_PING')) {
+            client.write('DEVICE_NAME:$computerName');
+            await client.flush();
+            client.destroy();
+            return;
+          }
+
           if (receivingMetadata) {
             if (receivingHeaderSize) {
               // First 4 bytes indicate metadata size
@@ -408,6 +418,11 @@ class ReceiveScreenState extends State<ReceiveScreen>
                 'path': savedPath,
                 'date': DateTime.now().toString(),
               });
+
+              NotificationService().showTransferCompletedNotification(
+                fileName: expectedFileName,
+                isReceived: true,
+              );
 
               if (mounted) {
                 ScaffoldMessenger.of(context).clearSnackBars();

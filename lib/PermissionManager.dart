@@ -200,10 +200,16 @@ class PermissionManager {
         if (await _isAndroid12OrHigher()) {
           permissions.add(Permission.nearbyWifiDevices);
         }
+
+        // Android 13+ Notification permission
+        if (await _isAndroid13OrHigher()) {
+          permissions.add(Permission.notification);
+        }
       } else if (Platform.isIOS) {
         permissions.addAll([
           Permission.photos,
           Permission.locationWhenInUse,
+          Permission.notification,
         ]);
       }
 

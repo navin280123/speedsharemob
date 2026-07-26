@@ -16,6 +16,7 @@ import 'package:speedsharemob/PermissionManager.dart';
 import 'package:speedsharemob/DeviceNameManager.dart';
 import 'package:speedsharemob/NetworkStatusWidget.dart';
 import 'package:speedsharemob/SpeedShareAppBar.dart';
+import 'package:speedsharemob/NotificationService.dart';
 
 class SyncScreen extends StatefulWidget {
   const SyncScreen({super.key});
@@ -290,12 +291,84 @@ class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
       _sendSyncAnnouncement();
     }
 
+    // Parallel HTTP subnet probe for routers blocking UDP broadcast
+    _scanSubnetHttp();
+
     await Future.delayed(const Duration(seconds: 2, milliseconds: 500));
     if (mounted) {
       setState(() {
         _isDiscovering = false;
       });
     }
+  }
+
+  Future<void> _scanSubnetHttp() async {
+    try {
+      final interfaces = await NetworkInterface.list();
+      final localIps = interfaces
+          .expand((i) => i.addresses)
+          .map((a) => a.address)
+          .toSet();
+      localIps.addAll(['127.0.0.1', '::1']);
+
+      final myName = await DeviceNameManager.getDeviceName();
+
+      for (var interface in interfaces) {
+        if (interface.name.contains('lo')) continue;
+        for (var addr in interface.addresses) {
+          if (addr.type == InternetAddressType.IPv4) {
+            final parts = addr.address.split('.');
+            if (parts.length == 4) {
+              final prefix = parts.sublist(0, 3).join('.');
+              final ipsToScan = <String>[];
+              for (int i = 1; i <= 254; i++) {
+                final targetIp = '$prefix.$i';
+                if (!localIps.contains(targetIp)) {
+                  ipsToScan.add(targetIp);
+                }
+              }
+              int chunkSize = 25;
+              for (int j = 0; j < ipsToScan.length; j += chunkSize) {
+                if (!mounted || !_isDiscovering) break;
+                final end = (j + chunkSize < ipsToScan.length)
+                    ? j + chunkSize
+                    : ipsToScan.length;
+                final chunk = ipsToScan.sublist(j, end);
+                await Future.wait(chunk.map((ip) => _probeHttpHost(ip, myName)));
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('HTTP subnet scan error: $e');
+    }
+  }
+
+  Future<void> _probeHttpHost(String ip, String myName) async {
+    try {
+      final response = await http
+          .get(Uri.parse('http://$ip:8082/api/info'))
+          .timeout(const Duration(milliseconds: 400));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        final deviceName = data['deviceName'] as String? ?? 'Unknown Device';
+        if (deviceName != myName && mounted) {
+          final device = SyncDevice(
+            name: deviceName,
+            ip: ip,
+            port: data['storagePort'] ?? 8082,
+            accessCode: data['accessCode'] ?? '',
+            capabilities: List<String>.from(data['capabilities'] ?? []),
+            lastSeen: DateTime.now(),
+          );
+          setState(() {
+            _availableDevices.removeWhere((d) => d.ip == device.ip);
+            _availableDevices.add(device);
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   void _sendSyncAnnouncement() async {
@@ -435,6 +508,24 @@ class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
   void _handleStorageRequest(HttpRequest request) async {
     try {
       final uri = request.uri;
+
+      // Handle info/ping without access code requirement
+      if (uri.path == '/api/info' || uri.path == '/api/ping') {
+        final deviceName = await DeviceNameManager.getDeviceName();
+        final info = json.encode({
+          'type': 'SPEEDSHARE_SYNC_ANNOUNCE',
+          'deviceName': deviceName,
+          'storagePort': 8082,
+          'accessCode': '',
+          'capabilities': ['storage_share', 'storage_browse'],
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        });
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(info);
+        await request.response.close();
+        return;
+      }
+
       final accessCode = uri.queryParameters['code'];
       
       if (accessCode != _accessCode) {
@@ -803,6 +894,13 @@ class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
           downloadTask.progress = 1.0;
           downloadTask.status = 'Completed';
         });
+
+        try {
+          NotificationService().showSyncCompletedNotification(
+            fileName: file.name,
+            sourceDevice: _selectedDevice?.name ?? 'Device',
+          );
+        } catch (_) {}
         
         _showSuccessSnackBar('Downloaded: ${file.name}');
       } else {

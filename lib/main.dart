@@ -3,9 +3,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:speedsharemob/MainScreen.dart';
 import 'package:speedsharemob/PermissionManager.dart';
+import 'package:speedsharemob/NotificationService.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService().initialize();
   await PermissionManager().requestAppPermissions();
   // Load settings
   final prefs = await SharedPreferences.getInstance();

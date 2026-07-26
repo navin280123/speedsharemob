@@ -11,6 +11,7 @@ import 'package:speedsharemob/PermissionManager.dart';
 import 'package:speedsharemob/DeviceNameManager.dart';
 import 'package:speedsharemob/NetworkStatusWidget.dart';
 import 'package:speedsharemob/SpeedShareAppBar.dart';
+import 'package:speedsharemob/NotificationService.dart';
 
 class FileSenderScreen extends StatefulWidget {
   const FileSenderScreen({super.key});
@@ -265,6 +266,12 @@ class FileSenderScreenState extends State<FileSenderScreen>
   void checkDirectTCPConnections() async {
     try {
       final interfaces = await NetworkInterface.list();
+      final localIps = interfaces
+          .expand((i) => i.addresses)
+          .map((a) => a.address)
+          .toSet();
+      localIps.addAll(['127.0.0.1', '::1']);
+
       for (var interface in interfaces) {
         if (interface.name.contains('lo')) continue;
         for (var addr in interface.addresses) {
@@ -272,13 +279,22 @@ class FileSenderScreenState extends State<FileSenderScreen>
             final parts = addr.address.split('.');
             if (parts.length == 4) {
               final prefix = parts.sublist(0, 3).join('.');
-              for (int i = 1; i <= 10; i++) {
-                await checkReceiver('$prefix.$i');
+              final ipsToScan = <String>[];
+              for (int i = 1; i <= 254; i++) {
+                final targetIp = '$prefix.$i';
+                if (!localIps.contains(targetIp)) {
+                  ipsToScan.add(targetIp);
+                }
               }
-              await checkReceiver('$prefix.100');
-              await checkReceiver('$prefix.101');
-              await checkReceiver('$prefix.102');
-              await checkReceiver('$prefix.255');
+              int chunkSize = 30;
+              for (int j = 0; j < ipsToScan.length; j += chunkSize) {
+                if (!mounted || !isScanning) break;
+                final end = (j + chunkSize < ipsToScan.length)
+                    ? j + chunkSize
+                    : ipsToScan.length;
+                final chunk = ipsToScan.sublist(j, end);
+                await Future.wait(chunk.map((ip) => checkReceiver(ip)));
+              }
             }
           }
         }
@@ -303,12 +319,12 @@ class FileSenderScreenState extends State<FileSenderScreen>
       sock = await Socket.connect(
         ip,
         targetPort,
-        timeout: const Duration(milliseconds: 500),
+        timeout: const Duration(milliseconds: 350),
       );
 
       final completer = Completer<String?>();
 
-      Timer(const Duration(seconds: 1), () {
+      Timer(const Duration(milliseconds: 800), () {
         if (!completer.isCompleted) {
           completer.complete(null);
         }
@@ -317,22 +333,28 @@ class FileSenderScreenState extends State<FileSenderScreen>
       sock.listen((data) {
         final message = String.fromCharCodes(data);
         if (message.startsWith('DEVICE_NAME:')) {
-          final deviceName = message.replaceFirst('DEVICE_NAME:', '');
+          final deviceName = message.replaceFirst('DEVICE_NAME:', '').trim();
           if (!completer.isCompleted) {
             completer.complete(deviceName);
           }
         }
-      }, onError: (e) {
-        debugPrint('Socket error during receiver check: $e');
+      }, onError: (_) {
         if (!completer.isCompleted) {
           completer.complete(null);
         }
       });
 
+      sock.write('SPEEDSHARE_PING');
+      await sock.flush();
+
       final deviceName = await completer.future;
       sock.destroy();
 
-      if (deviceName != null && deviceName.isNotEmpty && mounted) {
+      final myName = await DeviceNameManager.getDeviceName();
+      if (deviceName != null &&
+          deviceName.isNotEmpty &&
+          deviceName != myName &&
+          mounted) {
         setState(() {
           if (!availableReceivers.any((device) => device.ip == ip)) {
             availableReceivers.add(ReceiverDevice(name: deviceName, ip: ip));
@@ -786,6 +808,14 @@ class FileSenderScreenState extends State<FileSenderScreen>
 
   void _handleFileTransferComplete() {
     if (!mounted) return;
+    try {
+      final sentFileName = _selectedFiles[_currentFileIndex].name;
+      NotificationService().showTransferCompletedNotification(
+        fileName: sentFileName,
+        isReceived: false,
+        peerName: _receiverName,
+      );
+    } catch (_) {}
     setState(() {
       _selectedFiles[_currentFileIndex].status = 'Completed';
       _currentFileIndex++;
