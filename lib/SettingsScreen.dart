@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -6,7 +7,6 @@ import 'package:speedsharemob/main.dart';
 import 'package:speedsharemob/DeveloperDetailsScreen.dart';
 import 'package:speedsharemob/DeviceNameManager.dart';
 import 'package:speedsharemob/SpeedShareAppBar.dart';
-import 'dart:io';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -16,7 +16,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  // App settings
   String downloadPath = '';
   bool darkMode = false;
   bool showNotifications = true;
@@ -24,13 +23,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String deviceName = '';
   bool loading = true;
   bool saveHistory = true;
+  String localIp = '';
   late TextEditingController _portController;
-  
+
   @override
   void initState() {
     super.initState();
     _portController = TextEditingController(text: port.toString());
     _loadSettings();
+    _fetchLocalIp();
   }
 
   @override
@@ -39,16 +40,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.dispose();
   }
 
+  Future<void> _fetchLocalIp() async {
+    try {
+      final interfaces = await NetworkInterface.list();
+      for (var interface in interfaces) {
+        for (var addr in interface.addresses) {
+          if (addr.type == InternetAddressType.IPv4 &&
+              !addr.address.startsWith('127.') &&
+              !addr.address.startsWith('0.')) {
+            if (mounted) {
+              setState(() {
+                localIp = addr.address;
+              });
+            }
+            return;
+          }
+        }
+      }
+    } catch (_) {}
+    if (mounted) {
+      setState(() {
+        localIp = 'Not Connected';
+      });
+    }
+  }
+
   Future<void> _loadSettings() async {
     setState(() {
       loading = true;
     });
-    
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final loadedDeviceName = await DeviceNameManager.getDeviceName();
 
-      // getDownloadsDirectory() returns null on iOS — use a safe fallback
       Directory? downloadsDirectory = await getDownloadsDirectory();
       String speedsharePath;
       if (downloadsDirectory != null) {
@@ -76,66 +101,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _saveSettings() async {
+  Future<void> _updateBoolSetting(String key, bool value) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
-      await prefs.setString('deviceName', deviceName);
-      await prefs.setBool('darkMode', darkMode);
-      await prefs.setBool('showNotifications', showNotifications);
-      await prefs.setInt('port', port);
-      await prefs.setString('downloadPath', downloadPath);
-      await prefs.setBool('saveHistory', saveHistory);
-      
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).clearSnackBars();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.check_circle_rounded, color: Colors.white),
-              SizedBox(width: 10),
-              Text('Settings saved successfully'),
-            ],
-          ),
-          backgroundColor: const Color(0xFF2AB673),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          margin: const EdgeInsets.all(20),
-        ),
-      );
+      await prefs.setBool(key, value);
     } catch (e) {
-      debugPrint('Error saving settings: $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).clearSnackBars();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.error_rounded, color: Colors.white),
-              SizedBox(width: 10),
-              Text('Error saving settings'),
-            ],
-          ),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 3),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          margin: const EdgeInsets.all(20),
-        ),
-      );
+      debugPrint('Error updating setting $key: $e');
     }
   }
 
   Future<void> _selectDownloadFolder() async {
     try {
       String? path = await FilePicker.platform.getDirectoryPath();
-      
       if (path != null) {
         setState(() {
           downloadPath = path;
         });
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('downloadPath', path);
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Download path updated: $path'),
+            backgroundColor: const Color(0xFF2AB673),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            margin: const EdgeInsets.all(20),
+          ),
+        );
       }
     } catch (e) {
       debugPrint('Error selecting folder: $e');
@@ -146,35 +143,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text(
-          'Reset Settings',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red),
+            SizedBox(width: 10),
+            Text('Reset Settings'),
+          ],
         ),
         content: const Text(
-          'This will reset all settings to default values. Are you sure you want to continue?',
+          'This will reset all preferences and device configurations to default values. Are you sure you want to proceed?',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: Colors.grey[700],
-              ),
-            ),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
-              final messenger = ScaffoldMessenger.of(context);
               Navigator.of(context).pop();
               final prefs = await SharedPreferences.getInstance();
               await prefs.clear();
               await _loadSettings();
-              
-              messenger.clearSnackBars();
-              messenger.showSnackBar(
+
+              if (!mounted || !context.mounted) return;
+              ScaffoldMessenger.of(context).clearSnackBars();
+              ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: const Row(
                     children: [
@@ -185,8 +181,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   backgroundColor: const Color(0xFF4E6AF3),
                   behavior: SnackBarBehavior.floating,
-                  duration: const Duration(seconds: 2),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                   margin: const EdgeInsets.all(20),
                 ),
               );
@@ -195,168 +192,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
             ),
-            child: Text(
-              'Reset',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            child: const Text('Reset Everything'),
           ),
         ],
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: const SpeedShareAppBar(
-        title: 'Settings',
-        subtitle: 'Preferences & network options',
-        icon: Icons.settings_rounded,
-      ),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800),
-            child: loading
-                ? const Center(
-                    child: CircularProgressIndicator(),
-                  )
-                : Column(
-                    children: [
-                  // Main content
-                  Expanded(
-                    child: ListView(
-                      padding: const EdgeInsets.all(16),
-                      children: [
-                        // Profile section
-                        _buildProfileSection(),
-                        const SizedBox(height: 16),
-                        
-                        // Appearance settings
-                        _buildSettingsSection(
-                          'Appearance',
-                          Icons.palette_rounded,
-                          [
-                            _buildSwitchSetting(
-                              title: 'Dark mode',
-                              subtitle: 'Use dark theme throughout the app',
-                              value: darkMode,
-                              onChanged: (value) {
-                                setState(() {
-                                  darkMode = value;
-                                });
-                                MyApp.updateDarkMode(value);
-                              },
-                              icon: Icons.dark_mode_rounded,
-                            ),
-                          ],
-                        ),
-                        
-                        const SizedBox(height: 16),
-                        
-                        // Notification settings
-                        _buildSettingsSection(
-                          'Notifications',
-                          Icons.notifications_rounded,
-                          [
-                            _buildSwitchSetting(
-                              title: 'Show notifications',
-                              subtitle: 'Display notifications for file transfers',
-                              value: showNotifications,
-                              onChanged: (value) {
-                                setState(() {
-                                  showNotifications = value;
-                                });
-                              },
-                              icon: Icons.notifications_active_rounded,
-                            ),
-                          ],
-                        ),
-                        
-                        const SizedBox(height: 16),
-                        
-                        // Storage settings
-                        _buildSettingsSection(
-                          'Storage',
-                          Icons.folder_rounded,
-                          [
-                            _buildDownloadPathSetting(),
-                            const SizedBox(height: 16),
-                            _buildSwitchSetting(
-                              title: 'Save transfer history',
-                              subtitle: 'Keep a record of sent and received files',
-                              value: saveHistory,
-                              onChanged: (value) {
-                                setState(() {
-                                  saveHistory = value;
-                                });
-                              },
-                              icon: Icons.history_rounded,
-                            ),
-                          ],
-                        ),
-                        
-                        const SizedBox(height: 16),
-                        
-                        // Network settings
-                        _buildSettingsSection(
-                          'Network',
-                          Icons.wifi_rounded,
-                          [
-                            _buildPortSetting(),
-                          ],
-                        ),
-                        
-                        const SizedBox(height: 16),
-                        
-                        // About section
-                        _buildAboutSection(),
-                        
-                        const SizedBox(height: 16),
-                        
-                        // Reset button
-                        OutlinedButton.icon(
-                          onPressed: _resetSettings,
-                          icon: const Icon(Icons.refresh_rounded),
-                          label: const Text('Reset to Default Settings'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.red,
-                            side: const BorderSide(color: Colors.red),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  // Save button at bottom
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _saveSettings,
-                        icon: const Icon(Icons.save_rounded),
-                        label: const Text('Save Changes'),
-                        style: ElevatedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          backgroundColor: const Color(0xFF2AB673),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              ),
-              ),
-      ),
-    );
-  }
-  
   void _showEditDeviceNameDialog() {
     final controller = TextEditingController(text: deviceName);
     showDialog(
@@ -399,7 +241,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         tooltip: 'Randomize Name',
                         onPressed: () {
                           setDialogState(() {
-                            controller.text = DeviceNameManager.generateRandomName();
+                            controller.text =
+                                DeviceNameManager.generateRandomName();
                           });
                         },
                       ),
@@ -411,7 +254,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: TextButton.icon(
                       onPressed: () {
                         setDialogState(() {
-                          controller.text = DeviceNameManager.generateRandomName();
+                          controller.text =
+                              DeviceNameManager.generateRandomName();
                         });
                       },
                       icon: const Icon(Icons.shuffle_rounded, size: 16),
@@ -462,82 +306,283 @@ class _SettingsScreenState extends State<SettingsScreen> {
       },
     );
   }
-  
-  Widget _buildProfileSection() {
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: _showEditDeviceNameDialog,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4E6AF3),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF4E6AF3).withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: Text(
-                    deviceName.isNotEmpty 
-                        ? deviceName.substring(0, 1).toUpperCase() 
-                        : 'U',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      appBar: const SpeedShareAppBar(
+        title: 'Settings',
+        subtitle: 'Preferences & network options',
+        icon: Icons.settings_rounded,
+      ),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: loading
+                ? const Center(
+                    child: CircularProgressIndicator(),
+                  )
+                : ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      // Hero Device Profile Section
+                      _buildHeroDeviceCard(isDark),
+
+                      const SizedBox(height: 16),
+
+                      // Appearance & Preferences
+                      _buildSectionCard(
+                        title: 'Preferences',
+                        icon: Icons.tune_rounded,
+                        children: [
+                          _buildSwitchSettingTile(
+                            title: 'Dark Mode',
+                            subtitle: 'Toggle app dark theme',
+                            icon: darkMode
+                                ? Icons.dark_mode_rounded
+                                : Icons.light_mode_rounded,
+                            value: darkMode,
+                            onChanged: (value) async {
+                              setState(() {
+                                darkMode = value;
+                              });
+                              MyApp.updateDarkMode(value);
+                              await _updateBoolSetting('darkMode', value);
+                            },
+                          ),
+                          const Divider(height: 20),
+                          _buildSwitchSettingTile(
+                            title: 'Notifications',
+                            subtitle:
+                                'Display alerts upon completed file transfers',
+                            icon: Icons.notifications_active_rounded,
+                            value: showNotifications,
+                            onChanged: (value) async {
+                              setState(() {
+                                showNotifications = value;
+                              });
+                              await _updateBoolSetting(
+                                  'showNotifications', value);
+                            },
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Storage & History
+                      _buildSectionCard(
+                        title: 'Storage & Files',
+                        icon: Icons.folder_special_rounded,
+                        children: [
+                          _buildDownloadPathTile(isDark),
+                          const Divider(height: 20),
+                          _buildSwitchSettingTile(
+                            title: 'Save Transfer History',
+                            subtitle:
+                                'Maintain a record of received & sent files',
+                            icon: Icons.history_rounded,
+                            value: saveHistory,
+                            onChanged: (value) async {
+                              setState(() {
+                                saveHistory = value;
+                              });
+                              await _updateBoolSetting('saveHistory', value);
+                            },
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Network Config
+                      _buildSectionCard(
+                        title: 'Network & Connectivity',
+                        icon: Icons.wifi_tethering_rounded,
+                        children: [
+                          _buildPortSettingTile(isDark),
+                        ],
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // About & App Info
+                      _buildAboutSectionCard(isDark),
+
+                      const SizedBox(height: 24),
+
+                      // Reset Settings Danger Action
+                      Center(
+                        child: OutlinedButton.icon(
+                          onPressed: _resetSettings,
+                          icon: const Icon(Icons.refresh_rounded, size: 18),
+                          label: const Text('Reset All Settings to Defaults'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red,
+                            side: const BorderSide(color: Colors.redAccent),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
                   ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Device Name',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      deviceName,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.edit_rounded, color: Color(0xFF4E6AF3)),
-                tooltip: 'Edit Device Name',
-                onPressed: _showEditDeviceNameDialog,
-              ),
-            ],
           ),
         ),
       ),
     );
   }
-  
-  Widget _buildSettingsSection(String title, IconData icon, List<Widget> children) {
+
+  Widget _buildHeroDeviceCard(bool isDark) {
+    final avatarLetter =
+        deviceName.isNotEmpty ? deviceName.substring(0, 1).toUpperCase() : 'S';
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [const Color(0xFF1E2640), const Color(0xFF151928)]
+              : [const Color(0xFFEEF2FF), const Color(0xFFE0E7FF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFF4E6AF3).withValues(alpha: 0.2),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4E6AF3).withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Row(
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF4E6AF3), Color(0xFF2AB673)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF4E6AF3).withValues(alpha: 0.35),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Text(
+                  avatarLetter,
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'THIS DEVICE NAME',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.8,
+                      color: Color(0xFF4E6AF3),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    deviceName,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: localIp != 'Not Connected'
+                              ? const Color(0xFF2AB673)
+                              : Colors.amber,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        localIp.isNotEmpty ? 'IP: $localIp' : 'Detecting IP...',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? Colors.grey[400] : Colors.grey[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              onPressed: _showEditDeviceNameDialog,
+              icon: const Icon(Icons.edit_rounded, size: 16),
+              label: const Text('Edit'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4E6AF3),
+                foregroundColor: Colors.white,
+                elevation: 2,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionCard({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
     return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -549,7 +594,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: const Color(0xFF4E6AF3).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
                     icon,
@@ -563,6 +608,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
+                    fontFamily: 'Poppins',
                   ),
                 ),
               ],
@@ -574,31 +620,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
-  
-  Widget _buildSwitchSetting({
+
+  Widget _buildSwitchSettingTile({
     required String title,
     required String subtitle,
+    required IconData icon,
     required bool value,
     required Function(bool) onChanged,
-    required IconData icon,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Row(
       children: [
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.grey[800]
-                : Colors.grey[200],
-            borderRadius: BorderRadius.circular(8),
+            color: isDark ? Colors.grey[800] : Colors.grey[100],
+            borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(
             icon,
-            size: 18,
+            size: 20,
             color: value ? const Color(0xFF4E6AF3) : Colors.grey,
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 14),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -607,16 +653,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 title,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 15,
+                  fontSize: 14,
                 ),
               ),
+              const SizedBox(height: 2),
               Text(
                 subtitle,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.grey[400]
-                      : Colors.grey[600],
+                  color: isDark ? Colors.grey[400] : Colors.grey[600],
                 ),
               ),
             ],
@@ -630,75 +675,88 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ],
     );
   }
-  
-  Widget _buildPortSetting() {
-    return Row(
+
+  Widget _buildDownloadPathTile(bool isDark) {
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.grey[800]
-                : Colors.grey[200],
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: const Icon(
-            Icons.router_rounded,
-            size: 18,
-            color: Color(0xFF4E6AF3),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Port',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                ),
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey[800] : Colors.grey[100],
+                borderRadius: BorderRadius.circular(10),
               ),
-              Text(
-                'Set the port number for receiving files',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.grey[400]
-                      : Colors.grey[600],
-                ),
+              child: const Icon(
+                Icons.folder_open_rounded,
+                size: 20,
+                color: Color(0xFF4E6AF3),
               ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: 120,
-                child: TextField(
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Download Location',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
                     ),
                   ),
-                  keyboardType: TextInputType.number,
-                  controller: _portController,
-                  onChanged: (value) {
-                    try {
-                      port = int.parse(value);
-                    } catch (_) {}
-                  },
+                  Text(
+                    'Where incoming files are saved',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.grey[900] : Colors.grey[100],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Colors.grey.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  downloadPath.isNotEmpty
+                      ? downloadPath
+                      : 'Setting download location...',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontFamily: 'monospace',
+                    color: isDark ? Colors.grey[300] : Colors.grey[800],
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(height: 4),
-              const Text(
-                'Requires app restart',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontStyle: FontStyle.italic,
-                  color: Colors.orange,
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: _selectDownloadFolder,
+                icon: const Icon(Icons.folder_shared_rounded, size: 16),
+                label: const Text('Browse'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4E6AF3),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  visualDensity: VisualDensity.compact,
                 ),
               ),
             ],
@@ -707,88 +765,109 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ],
     );
   }
-  
-  Widget _buildDownloadPathSetting() {
-    return Row(
+
+  Widget _buildPortSettingTile(bool isDark) {
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.grey[800]
-                : Colors.grey[200],
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: const Icon(
-            Icons.download_rounded,
-            size: 18,
-            color: Color(0xFF4E6AF3),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Download Location',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                ),
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey[800] : Colors.grey[100],
+                borderRadius: BorderRadius.circular(10),
               ),
-              Text(
-                'Set where received files are saved',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.grey[400]
-                      : Colors.grey[600],
-                ),
+              child: const Icon(
+                Icons.router_rounded,
+                size: 20,
+                color: Color(0xFF4E6AF3),
               ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: Colors.grey.withValues(alpha: 0.5),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Listening TCP Port',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                   ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        downloadPath,
-                        style: const TextStyle(fontSize: 12),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                  Text(
+                    'Port for receiving raw TCP file transfers',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.grey[400] : Colors.grey[600],
                     ),
-                    TextButton(
-                      onPressed: _selectDownloadFolder,
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                      ),
-                      child: const Text('Browse'),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            SizedBox(
+              width: 120,
+              child: TextField(
+                controller: _portController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Port Number',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                ),
+                onChanged: (value) async {
+                  try {
+                    final parsed = int.parse(value);
+                    if (parsed > 1024 && parsed < 65535) {
+                      port = parsed;
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setInt('port', parsed);
+                    }
+                  } catch (_) {}
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            OutlinedButton.icon(
+              onPressed: () async {
+                setState(() {
+                  port = 8080;
+                  _portController.text = '8080';
+                });
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setInt('port', 8080);
+              },
+              icon: const Icon(Icons.restore_rounded, size: 16),
+              label: const Text('Reset (8080)'),
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
-  
-  Widget _buildAboutSection() {
-    // Helper to show dialogs for Privacy Policy and Terms
+
+  Widget _buildAboutSectionCard(bool isDark) {
     void showInfoDialog(String title, String content) {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Text(title),
           content: SingleChildScrollView(child: Text(content)),
           actions: [
@@ -801,8 +880,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
     }
 
-
     return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -814,7 +896,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: const Color(0xFF4E6AF3).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
                     Icons.info_outline_rounded,
@@ -824,17 +906,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(width: 12),
                 const Text(
-                  'About',
+                  'About SpeedShare',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
+                    fontFamily: 'Poppins',
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            
-            // App logo and info
+
+            // App Brand Header
             Center(
               child: Column(
                 children: [
@@ -861,35 +944,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   const Text(
                     'SpeedShare',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF4E6AF3),
+                      fontFamily: 'Poppins',
                     ),
                   ),
-                  Text(
-                    'Version 1.0.0',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.grey[400]
-                          : Colors.grey[600],
+                  Container(
+                    margin: const EdgeInsets.only(top: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2AB673).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                  ),
-                  Text(
-                    'Device: $deviceName',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.grey[400]
-                          : Colors.grey[600],
+                    child: const Text(
+                      'v1.0.3+4 • Stable Release',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2AB673),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Privacy and Terms
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -899,20 +982,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           showInfoDialog(
                             'Privacy Policy',
                             'Privacy Policy\n\n'
-                            'Last updated: May 19, 2025\n\n'
-                            'SpeedShare we values your privacy. This Privacy Policy explains how SpeedShare handles your information when you use our application to share files between two computers over the same WiFi network.\n\n'
-                            '1. Information Collection\n'
-                            'SpeedShare does not collect, store, or transmit any personal information or files to any server. All file transfers occur directly between devices on your local WiFi network.\n\n'
-                            '2. How We Use Your Information\n'
-                            'Since we do not collect any personal data, we do not use or share your information in any way.\n\n'
-                            '3. File Transfers\n'
-                            'All files shared using SpeedShare remain within your local network and are not uploaded to any external servers. You are responsible for ensuring that you trust the devices you are connecting to.\n\n'
-                            '4. Security\n'
-                            'We implement reasonable security measures to protect connections between devices; however, please ensure your WiFi network is secure and only connect to trusted devices.\n\n'
-                            '5. Changes to This Policy\n'
-                            'We may update our Privacy Policy from time to time. Any changes will be reflected within the application.\n\n'
-                            '6. Contact Us\n'
-                            'If you have any questions about this Privacy Policy, please contact us at kumarnavinverma7@gmail.com.',
+                                'Last updated: May 19, 2025\n\n'
+                                'SpeedShare values your privacy. This Privacy Policy explains how SpeedShare handles your information when you use our application to share files between devices over the local network.\n\n'
+                                '1. Information Collection\n'
+                                'SpeedShare does not collect, store, or transmit any personal information or files to external cloud servers. All file transfers occur directly between devices on your local network.\n\n'
+                                '2. File Transfers\n'
+                                'All files shared using SpeedShare remain within your local network. You are responsible for ensuring that you trust the devices you connect with.\n\n'
+                                '3. Security\n'
+                                'We implement standard socket encryption practices; please ensure your local Wi-Fi network is secure.',
                           );
                         },
                         child: const Text(
@@ -920,26 +997,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           style: TextStyle(fontSize: 12),
                         ),
                       ),
-                      Text('•', style: TextStyle(color: Colors.grey)),
+                      const Text('•', style: TextStyle(color: Colors.grey)),
                       TextButton(
                         onPressed: () {
                           showInfoDialog(
                             'Terms of Service',
                             'Terms of Service\n\n'
-                            'Last updated: May 19, 2025\n\n'
-                            'Please read these Terms of Service ("Terms") before using SpeedShare ("the App"). By using the App, you agree to be bound by these Terms.\n\n'
-                            '1. Use of the App\n'
-                            'SpeedShare is intended for sharing files between two computers over the same WiFi network. You are responsible for using the App in compliance with all applicable laws and regulations.\n\n'
-                            '2. User Responsibility\n'
-                            'You are solely responsible for the files you choose to share and receive. Do not use SpeedShare to transfer illegal, harmful, or infringing content.\n\n'
-                            '3. No Warranty\n'
-                            'SpeedShare is provided "as is" without any warranties. We do not guarantee that the App will be error-free or uninterrupted.\n\n'
-                            '4. Limitation of Liability\n'
-                            'We are not liable for any damages or losses resulting from the use of SpeedShare, including but not limited to data loss, unauthorized access, or network issues.\n\n'
-                            '5. Modifications\n'
-                            'We reserve the right to modify these Terms at any time. Continued use of the App after changes means you accept the new Terms.\n\n'
-                            '6. Contact Us\n'
-                            'If you have questions about these Terms, contact us at kumarnavinverma7@gmail.com.',
+                                'Last updated: May 19, 2025\n\n'
+                                'By using SpeedShare, you agree to these Terms of Service.\n\n'
+                                '1. User Responsibility\n'
+                                'You are solely responsible for the files you choose to share and receive.\n\n'
+                                '2. Disclaimer\n'
+                                'SpeedShare is provided "as is" without any express or implied warranties.',
                           );
                         },
                         child: const Text(
@@ -949,11 +1018,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ],
                   ),
-                  
-                  const SizedBox(height: 20),
+
+                  const SizedBox(height: 12),
                   const Divider(),
                   const SizedBox(height: 8),
+
+                  // Developer details navigation tile
                   ListTile(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
@@ -976,7 +1050,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       'Connect with the developer',
                       style: TextStyle(fontSize: 12),
                     ),
-                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded,
+                        size: 14),
                     onTap: () {
                       Navigator.push(
                         context,
