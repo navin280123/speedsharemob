@@ -148,7 +148,14 @@ class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
         return;
       }
 
-      if (data['type'] == 'SPEEDSHARE_SYNC_PROBE') {
+      if (data['type'] == 'SPEEDSHARE_SYNC_GOODBYE') {
+        if (mounted) {
+          setState(() {
+            _availableDevices.removeWhere((d) => d.ip == senderIp);
+          });
+        }
+        return;
+      } else if (data['type'] == 'SPEEDSHARE_SYNC_PROBE') {
         // If this device is sharing storage, respond immediately to probe
         if (_isStorageSharing) {
           _sendSyncAnnouncement();
@@ -285,6 +292,8 @@ class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
     }
 
     _cleanupStaleDevices();
+    await _verifyAndCleanupDevices();
+
     _sendSyncProbe();
 
     if (_isStorageSharing) {
@@ -299,6 +308,63 @@ class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
       setState(() {
         _isDiscovering = false;
       });
+    }
+  }
+
+  Future<void> _verifyAndCleanupDevices() async {
+    final List<SyncDevice> unreachable = [];
+    for (final device in List<SyncDevice>.from(_availableDevices)) {
+      try {
+        final res = await http
+            .get(Uri.parse('http://${device.ip}:${device.port}/api/info'))
+            .timeout(const Duration(milliseconds: 400));
+        if (res.statusCode != 200) {
+          unreachable.add(device);
+        }
+      } catch (_) {
+        unreachable.add(device);
+      }
+    }
+
+    if (unreachable.isNotEmpty && mounted) {
+      setState(() {
+        _availableDevices.removeWhere((d) => unreachable.any((u) => u.ip == d.ip));
+      });
+    }
+  }
+
+  void _sendSyncGoodbye() async {
+    if (_syncDiscoverySocket == null) return;
+    try {
+      final deviceName = await DeviceNameManager.getDeviceName();
+      final goodbye = json.encode({
+        'type': 'SPEEDSHARE_SYNC_GOODBYE',
+        'deviceName': deviceName,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+      final data = utf8.encode(goodbye);
+
+      try {
+        _syncDiscoverySocket!.send(data, InternetAddress('255.255.255.255'), 8083);
+      } catch (_) {}
+
+      final interfaces = await NetworkInterface.list();
+      for (var interface in interfaces) {
+        if (interface.name.contains('lo')) continue;
+        for (var addr in interface.addresses) {
+          if (addr.type == InternetAddressType.IPv4) {
+            final parts = addr.address.split('.');
+            if (parts.length == 4) {
+              final subnet = parts.sublist(0, 3).join('.');
+              try {
+                _syncDiscoverySocket!.send(data, InternetAddress('$subnet.255'), 8083);
+              } catch (_) {}
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error sending sync goodbye: $e');
     }
   }
 
@@ -490,6 +556,7 @@ class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
 
   Future<void> _stopStorageSharing() async {
     try {
+      _sendSyncGoodbye();
       await _storageServer?.close();
       _storageServer = null;
       _accessCode = null;
