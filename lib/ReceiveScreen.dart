@@ -210,11 +210,22 @@ class ReceiveScreenState extends State<ReceiveScreen>
         8081,
         reuseAddress: true,
       );
-      _discoverySocket!.broadcastEnabled = true;
+      final interfaces = await NetworkInterface.list();
+      final localIps = interfaces
+          .expand((i) => i.addresses)
+          .map((a) => a.address)
+          .toSet();
+      localIps.addAll(['127.0.0.1', '::1']);
+
       _discoverySocket!.listen((event) {
         if (event == RawSocketEvent.read) {
           final datagram = _discoverySocket!.receive();
           if (datagram != null) {
+            // Ignore self discovery packets
+            if (localIps.contains(datagram.address.address)) {
+              return;
+            }
+
             final message = utf8.decode(datagram.data);
             if (message == 'SPEEDSHARE_DISCOVERY') {
               final responseMessage = utf8.encode(

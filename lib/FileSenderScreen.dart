@@ -131,6 +131,16 @@ class FileSenderScreenState extends State<FileSenderScreen>
       // Set broadcast option which is important for discovery
       _discoverySocket!.broadcastEnabled = true;
 
+      // Get local IPs to filter out self-device
+      final interfaces = await NetworkInterface.list();
+      final localIps = interfaces
+          .expand((i) => i.addresses)
+          .map((a) => a.address)
+          .toSet();
+      localIps.addAll(['127.0.0.1', '::1']);
+
+      final myDeviceName = await DeviceNameManager.getDeviceName();
+
       _discoverySocket!.listen((event) {
         if (event == RawSocketEvent.read) {
           final datagram = _discoverySocket!.receive();
@@ -141,6 +151,12 @@ class FileSenderScreenState extends State<FileSenderScreen>
               if (parts.length >= 3) {
                 final deviceName = parts[1];
                 final ipAddress = datagram.address.address;
+
+                // Skip self device
+                if (localIps.contains(ipAddress) || deviceName == myDeviceName) {
+                  return;
+                }
+
                 if (mounted) {
                   setState(() {
                     if (!availableReceivers.any(
@@ -183,7 +199,6 @@ class FileSenderScreenState extends State<FileSenderScreen>
           // Ignore
         }
 
-        final interfaces = await NetworkInterface.list();
         for (var interface in interfaces) {
           if (interface.name.contains('lo')) continue;
           for (var addr in interface.addresses) {
@@ -201,14 +216,6 @@ class FileSenderScreenState extends State<FileSenderScreen>
                   );
                 } catch (e) {
                   // Ignore
-                }
-
-                // Try own address
-                try {
-                  final ownAddress = InternetAddress(addr.address);
-                  _discoverySocket!.send(message, ownAddress, 8081);
-                } catch (e) {
-                  debugPrint('Failed to send to own address: $e');
                 }
 
                 // Try gateway and a few specific IPs

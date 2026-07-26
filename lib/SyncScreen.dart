@@ -115,25 +115,59 @@ class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
     }
   }
 
-  void _handleSyncDiscovery(Datagram datagram) {
+  Future<bool> _isSelfDevice(String incomingIp, String? incomingName) async {
+    if (incomingIp == '127.0.0.1' || incomingIp == '::1') return true;
+    try {
+      final myName = await DeviceNameManager.getDeviceName();
+      if (incomingName != null && incomingName.trim().isNotEmpty && incomingName == myName) {
+        return true;
+      }
+      final interfaces = await NetworkInterface.list();
+      for (var interface in interfaces) {
+        for (var addr in interface.addresses) {
+          if (addr.address == incomingIp) {
+            return true;
+          }
+        }
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  void _handleSyncDiscovery(Datagram datagram) async {
     try {
       final message = utf8.decode(datagram.data);
       final data = json.decode(message) as Map<String, dynamic>;
       
-      if (data['type'] == 'SPEEDSHARE_SYNC_ANNOUNCE') {
+      final senderIp = datagram.address.address;
+      final senderName = data['deviceName'] as String?;
+
+      // Ignore packets from self device
+      if (await _isSelfDevice(senderIp, senderName)) {
+        return;
+      }
+
+      if (data['type'] == 'SPEEDSHARE_SYNC_PROBE') {
+        // If this device is sharing storage, respond immediately to probe
+        if (_isStorageSharing) {
+          _sendSyncAnnouncement();
+        }
+      } else if (data['type'] == 'SPEEDSHARE_SYNC_ANNOUNCE') {
         final device = SyncDevice(
-          name: data['deviceName'],
-          ip: datagram.address.address,
-          port: data['storagePort'],
+          name: data['deviceName'] ?? 'Unknown Device',
+          ip: senderIp,
+          port: data['storagePort'] ?? 8082,
           accessCode: data['accessCode'] ?? '',
-          capabilities: List<String>.from(data['capabilities']),
+          capabilities: List<String>.from(data['capabilities'] ?? []),
           lastSeen: DateTime.now(),
         );
-        
-        setState(() {
-          _availableDevices.removeWhere((d) => d.ip == device.ip);
-          _availableDevices.add(device);
-        });
+
+        if (mounted) {
+          setState(() {
+            _availableDevices.removeWhere((d) => d.ip == device.ip);
+            _availableDevices.add(device);
+          });
+        }
       }
     } catch (e) {
       debugPrint('Error handling sync discovery: $e');
@@ -196,11 +230,72 @@ class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
   }
 
   void _startDiscovery() {
-    _discoveryTimer = Timer.periodic(Duration(seconds: 10), (timer) {
-      _sendSyncAnnouncement();
+    _discoveryTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      if (_isStorageSharing) {
+        _sendSyncAnnouncement();
+      }
+      _sendSyncProbe();
       _cleanupStaleDevices();
     });
-    _sendSyncAnnouncement();
+    _refreshDevices();
+  }
+
+  void _sendSyncProbe() async {
+    if (_syncDiscoverySocket == null) return;
+    try {
+      final deviceName = await DeviceNameManager.getDeviceName();
+      final probe = json.encode({
+        'type': 'SPEEDSHARE_SYNC_PROBE',
+        'deviceName': deviceName,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+      final data = utf8.encode(probe);
+
+      try {
+        _syncDiscoverySocket!.send(data, InternetAddress('255.255.255.255'), 8083);
+      } catch (_) {}
+
+      final interfaces = await NetworkInterface.list();
+      for (var interface in interfaces) {
+        if (interface.name.contains('lo')) continue;
+        for (var addr in interface.addresses) {
+          if (addr.type == InternetAddressType.IPv4) {
+            final parts = addr.address.split('.');
+            if (parts.length == 4) {
+              final subnet = parts.sublist(0, 3).join('.');
+              try {
+                _syncDiscoverySocket!.send(data, InternetAddress('$subnet.255'), 8083);
+              } catch (_) {}
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error sending sync probe: $e');
+    }
+  }
+
+  Future<void> _refreshDevices() async {
+    if (_isDiscovering) return;
+    if (mounted) {
+      setState(() {
+        _isDiscovering = true;
+      });
+    }
+
+    _cleanupStaleDevices();
+    _sendSyncProbe();
+
+    if (_isStorageSharing) {
+      _sendSyncAnnouncement();
+    }
+
+    await Future.delayed(const Duration(seconds: 2, milliseconds: 500));
+    if (mounted) {
+      setState(() {
+        _isDiscovering = false;
+      });
+    }
   }
 
   void _sendSyncAnnouncement() async {
@@ -997,12 +1092,20 @@ class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
                     ],
                   ),
                 ),
-                if (_isDiscovering)
-                  const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
+                IconButton(
+                  onPressed: _isDiscovering ? null : _refreshDevices,
+                  icon: _isDiscovering
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(
+                          Icons.refresh_rounded,
+                          color: Color(0xFF4E6AF3),
+                        ),
+                  tooltip: 'Refresh / Scan network',
+                ),
               ],
             ),
             
@@ -1046,19 +1149,7 @@ class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
                           ),
                           const SizedBox(height: 24),
                           OutlinedButton.icon(
-                            onPressed: () {
-                              setState(() {
-                                _isDiscovering = true;
-                              });
-                              _sendSyncAnnouncement();
-                              Timer(Duration(seconds: 3), () {
-                                if (mounted) {
-                                  setState(() {
-                                    _isDiscovering = false;
-                                  });
-                                }
-                              });
-                            },
+                            onPressed: _isDiscovering ? null : _refreshDevices,
                             icon: const Icon(Icons.refresh),
                             label: const Text('Scan Again'),
                             style: OutlinedButton.styleFrom(
