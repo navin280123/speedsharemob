@@ -15,6 +15,9 @@ on:
           - macos
           - all
 
+permissions:
+  contents: write # Grants permission to commit & push built installers back to repository
+
 jobs:
   # -------------------------------------------------------------
   # 1. ANDROID BUILD (.apk)
@@ -175,3 +178,41 @@ jobs:
         with:
           name: macos-installer
           path: installers/Speed Share.dmg
+
+  # -------------------------------------------------------------
+  # 5. COMMIT & PUSH BUILT INSTALLERS BACK TO REPOSITORY
+  # -------------------------------------------------------------
+  commit-installers:
+    name: Push Installers to Repository
+    needs: [build-android, build-windows, build-linux, build-macos]
+    if: always() && !cancelled() && !contains(needs.*.result, 'failure')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Download built installer artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: download-artifacts
+
+      - name: Copy installer binaries into installers directory
+        run: |
+          mkdir -p installers
+          find download-artifacts -type f \( -name "*.apk" -o -name "*.exe" -o -name "*.deb" -o -name "*.dmg" \) -exec cp {} installers/ \;
+          ls -la installers/
+
+      - name: Commit and push installers to main branch
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add installers/
+          if git diff --staged --quiet; then
+            echo "No changes in installers directory."
+          else
+            git commit -m "build: update installer binaries for platform '${{ github.event.inputs.platform }}' [skip ci]"
+            git push origin main
+          fi
