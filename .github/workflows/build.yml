@@ -2,6 +2,9 @@ name: SpeedShare Cross-Platform CI/CD Pipeline
 
 on:
   push:
+    branches:
+      - main
+      - master
     tags:
       - 'v*' # Triggers build on version tags (e.g. v1.0.5)
   workflow_dispatch: # Allows manual trigger from GitHub UI
@@ -23,7 +26,7 @@ jobs:
   # 1. ANDROID BUILD (.apk)
   # -------------------------------------------------------------
   build-android:
-    if: ${{ github.event_name == 'push' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' }}
+    if: github.event_name == 'push' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' || github.event.inputs.platform == ''
     name: Build Android APKs
     runs-on: ubuntu-latest
 
@@ -63,7 +66,7 @@ jobs:
   # 2. WINDOWS BUILD (.exe)
   # -------------------------------------------------------------
   build-windows:
-    if: ${{ github.event_name == 'push' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows' }}
+    if: github.event_name == 'push' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows' || github.event.inputs.platform == ''
     name: Build Windows Setup (.exe)
     runs-on: windows-latest
 
@@ -89,7 +92,11 @@ jobs:
       - name: Compile Windows Setup (.exe)
         run: |
           if (!(Test-Path -Path "installers")) { New-Item -ItemType Directory -Path "installers" }
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" inno_setup.iss
+          if (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe") {
+            & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" inno_setup.iss
+          } else {
+            iscc inno_setup.iss
+          }
 
       - name: Upload Windows Installer
         uses: actions/upload-artifact@v4
@@ -101,7 +108,7 @@ jobs:
   # 3. LINUX BUILD (.deb)
   # -------------------------------------------------------------
   build-linux:
-    if: ${{ github.event_name == 'push' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'linux' }}
+    if: github.event_name == 'push' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'linux' || github.event.inputs.platform == ''
     name: Build Linux Package (.deb)
     runs-on: ubuntu-latest
 
@@ -144,7 +151,7 @@ jobs:
   # 4. MACOS BUILD (.dmg)
   # -------------------------------------------------------------
   build-macos:
-    if: ${{ github.event_name == 'push' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'macos' }}
+    if: github.event_name == 'push' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'macos' || github.event.inputs.platform == ''
     name: Build macOS Disk Image (.dmg)
     runs-on: macos-latest
 
@@ -174,3 +181,34 @@ jobs:
         with:
           name: macos-installer
           path: installers/Speed Share.dmg
+
+  # -------------------------------------------------------------
+  # 5. AUTOMATED GITHUB RELEASE (ON TAG PUSH)
+  # -------------------------------------------------------------
+  create-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    name: Publish GitHub Release
+    needs: [build-android, build-windows, build-linux, build-macos]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: download-artifacts
+
+      - name: Consolidate Installer Assets
+        run: |
+          mkdir -p release_assets
+          find download-artifacts -type f \( -name "*.apk" -o -name "*.exe" -o -name "*.deb" -o -name "*.dmg" \) -exec cp {} release_assets/ \;
+          ls -la release_assets/
+
+      - name: Create GitHub Release & Attach Installers
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release_assets/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
