@@ -1,7 +1,10 @@
-name: Flutter Cross-Platform Release Builds
+name: SpeedShare Cross-Platform CI/CD Pipeline
 
 on:
-  workflow_dispatch:
+  push:
+    tags:
+      - 'v*' # Triggers build on version tags (e.g. v1.0.5)
+  workflow_dispatch: # Allows manual trigger from GitHub UI
     inputs:
       platform:
         description: "Select platform to build"
@@ -17,11 +20,11 @@ on:
 
 jobs:
   # -------------------------------------------------------------
-  # 1. ANDROID BUILD
+  # 1. ANDROID BUILD (.apk)
   # -------------------------------------------------------------
   build-android:
-    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' }}
-    name: Build Android APK
+    if: ${{ github.event_name == 'push' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android' }}
+    name: Build Android APKs
     runs-on: ubuntu-latest
 
     steps:
@@ -43,21 +46,25 @@ jobs:
       - name: Install Flutter dependencies
         run: flutter pub get
 
-      - name: Build Android APK
-        run: flutter build apk --release
+      - name: Build Android APKs
+        run: |
+          flutter build apk --release
+          flutter build apk --release --split-per-abi
+          mkdir -p installers
+          cp build/app/outputs/flutter-apk/*.apk installers/
 
-      - name: Upload Android Artifact
+      - name: Upload Android Installers
         uses: actions/upload-artifact@v4
         with:
-          name: android-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: android-installers
+          path: installers/*.apk
 
   # -------------------------------------------------------------
-  # 2. WINDOWS BUILD
+  # 2. WINDOWS BUILD (.exe)
   # -------------------------------------------------------------
   build-windows:
-    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows' }}
-    name: Build Windows Executable
+    if: ${{ github.event_name == 'push' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows' }}
+    name: Build Windows Setup (.exe)
     runs-on: windows-latest
 
     steps:
@@ -73,21 +80,29 @@ jobs:
       - name: Install Flutter dependencies
         run: flutter pub get
 
-      - name: Build Windows
+      - name: Build Windows Application
         run: flutter build windows --release
 
-      - name: Upload Windows Artifact
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
+      - name: Compile Windows Setup (.exe)
+        run: |
+          if (!(Test-Path -Path "installers")) { New-Item -ItemType Directory -Path "installers" }
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" inno_setup.iss
+
+      - name: Upload Windows Installer
         uses: actions/upload-artifact@v4
         with:
-          name: windows-app
-          path: build/windows/x64/runner/Release/
+          name: windows-installer
+          path: installers/SpeedShare_Windows_Setup.exe
 
   # -------------------------------------------------------------
-  # 3. LINUX BUILD
+  # 3. LINUX BUILD (.deb)
   # -------------------------------------------------------------
   build-linux:
-    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'linux' }}
-    name: Build Linux Desktop
+    if: ${{ github.event_name == 'push' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'linux' }}
+    name: Build Linux Package (.deb)
     runs-on: ubuntu-latest
 
     steps:
@@ -114,21 +129,23 @@ jobs:
       - name: Install Flutter dependencies
         run: flutter pub get
 
-      - name: Build Linux
-        run: flutter build linux --release
+      - name: Build Linux Debian Package
+        run: |
+          chmod +x installers/create_linux_installer.sh
+          bash installers/create_linux_installer.sh
 
-      - name: Upload Linux Artifact
+      - name: Upload Linux Installer
         uses: actions/upload-artifact@v4
         with:
-          name: linux-app
-          path: build/linux/x64/release/bundle/
+          name: linux-installer
+          path: installers/*.deb
 
   # -------------------------------------------------------------
-  # 4. MACOS BUILD
+  # 4. MACOS BUILD (.dmg)
   # -------------------------------------------------------------
   build-macos:
-    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == 'macos' }}
-    name: Build macOS Desktop
+    if: ${{ github.event_name == 'push' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'macos' }}
+    name: Build macOS Disk Image (.dmg)
     runs-on: macos-latest
 
     steps:
@@ -144,11 +161,16 @@ jobs:
       - name: Install Flutter dependencies
         run: flutter pub get
 
-      - name: Build macOS
+      - name: Build macOS Application
         run: flutter build macos --release
 
-      - name: Upload macOS Artifact
+      - name: Create macOS DMG
+        run: |
+          mkdir -p installers
+          hdiutil create -volname "Speed Share" -srcfolder "build/macos/Build/Products/Release/Speed Share.app" -ov -format UDZO "installers/Speed Share.dmg"
+
+      - name: Upload macOS Installer
         uses: actions/upload-artifact@v4
         with:
-          name: macos-app
-          path: build/macos/Build/Products/Release/
+          name: macos-installer
+          path: installers/Speed Share.dmg
