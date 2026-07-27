@@ -25,6 +25,27 @@ Download pre-built binaries and installers directly for your platform:
 
 ---
 
+## 📸 Screenshots
+
+<!-- Add your platform screenshots below -->
+
+### 🤖 Android
+<!-- ![Android Screenshot](url_or_path_to_android_screenshot.png) -->
+
+### 🍎 iOS
+<!-- ![iOS Screenshot](url_or_path_to_ios_screenshot.png) -->
+
+### 💻 macOS
+<!-- ![macOS Screenshot](url_or_path_to_macos_screenshot.png) -->
+
+### 🪟 Windows
+<!-- ![Windows Screenshot](url_or_path_to_windows_screenshot.png) -->
+
+### 🐧 Linux
+<!-- ![Linux Screenshot](url_or_path_to_linux_screenshot.png) -->
+
+---
+
 ## ✨ Features
 
 * **🚀 Blazing-Fast Speeds:** Transfer large files, 4K videos, photos, and documents at maximum Wi-Fi bandwidth speeds, far outperforming Bluetooth.
