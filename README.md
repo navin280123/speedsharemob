@@ -23,28 +23,7 @@ Download pre-built binaries and installers directly for your platform:
 
 > 🏷️ All release binaries can also be downloaded from [GitHub Releases](https://github.com/navin280123/speedsharemob/releases).
 
----
 
-## 📸 Screenshots
-
-<!-- Add your platform screenshots below -->
-
-### 🤖 Android
-<!-- ![Android Screenshot](url_or_path_to_android_screenshot.png) -->
-
-### 🍎 iOS
-<!-- ![iOS Screenshot](url_or_path_to_ios_screenshot.png) -->
-
-### 💻 macOS
-<!-- ![macOS Screenshot](url_or_path_to_macos_screenshot.png) -->
-
-### 🪟 Windows
-<!-- ![Windows Screenshot](url_or_path_to_windows_screenshot.png) -->
-
-### 🐧 Linux
-<!-- ![Linux Screenshot](url_or_path_to_linux_screenshot.png) -->
-
----
 
 ## ✨ Features
 
@@ -151,7 +130,43 @@ Speed Share is built with privacy at its core:
 * 📧 **Email:** [kumarnavinverma7@gmail.com](mailto:kumarnavinverma7@gmail.com)
 
 ---
+---
 
+## 📸 Screenshots
+
+<!-- Add your platform screenshots below -->
+
+### 🤖 Android
+<img width="411" height="921" alt="Screenshot 2026-07-27 at 11 14 34 AM" src="https://github.com/user-attachments/assets/19bea07e-9781-4e15-a630-803de5f07b3d" />
+<img width="410" height="922" alt="Screenshot 2026-07-27 at 11 15 37 AM" src="https://github.com/user-attachments/assets/2a8e8cb7-aa70-42d4-b922-c030e2cc97e0" />
+<img width="411" height="925" alt="Screenshot 2026-07-27 at 11 15 04 AM" src="https://github.com/user-attachments/assets/10352704-954b-4248-8bbf-2292038c5356" />
+<img width="411" height="921" alt="Screenshot 2026-07-27 at 11 16 01 AM" src="https://github.com/user-attachments/assets/84e925c6-a4ec-445f-a235-3bd63435dce6" />
+
+<!-- ![Android Screenshot](url_or_path_to_android_screenshot.png) -->
+
+### 🍎 iOS
+<img width="1206" height="2622" alt="simulator_screenshot_B75FAFB7-2E14-4055-B53C-B4161B2AA7F6" src="https://github.com/user-attachments/assets/96dbfa0e-0e7e-4831-813f-b3ea9da94bb4" />
+<img width="1206" height="2622" alt="simulator_screenshot_9BEF2ADA-9A28-4981-BF63-FB0092B57AEF" src="https://github.com/user-attachments/assets/4c4e9959-ea4f-4250-8cb8-04e5705a2552" />
+<img width="1206" height="2622" alt="simulator_screenshot_7F656374-734E-416E-BBE9-679DBAC9932D" src="https://github.com/user-attachments/assets/4f414b8e-5161-4b18-98e9-e37883f0ae91" />
+<img width="1206" height="2622" alt="simulator_screenshot_25AC9F33-F512-4D55-9F6C-92263D58B515" src="https://github.com/user-attachments/assets/a68f582b-394b-4619-af3e-55fa7748d444" />
+
+<!-- ![iOS Screenshot](url_or_path_to_ios_screenshot.png) -->
+
+### 💻 macOS
+<img width="800" height="627" alt="Screenshot 2026-07-27 at 11 07 52 AM" src="https://github.com/user-attachments/assets/63948047-adc3-4a9d-ba47-7c38ed786502" />
+<img width="800" height="630" alt="Screenshot 2026-07-27 at 11 08 41 AM" src="https://github.com/user-attachments/assets/1783727b-9104-481f-82bb-562d5bdaee02" />
+<img width="802" height="630" alt="Screenshot 2026-07-27 at 11 08 21 AM" src="https://github.com/user-attachments/assets/b955cabd-f2ce-4013-9508-2b5db3131311" />
+<img width="800" height="630" alt="Screenshot 2026-07-27 at 11 17 01 AM" src="https://github.com/user-attachments/assets/9e87d8d1-4c7d-4ca6-b3aa-82f545403f78" />
+
+<!-- ![macOS Screenshot](url_or_path_to_macos_screenshot.png) -->
+
+### 🪟 Windows
+<!-- ![Windows Screenshot](url_or_path_to_windows_screenshot.png) -->
+
+### 🐧 Linux
+<!-- ![Linux Screenshot](url_or_path_to_linux_screenshot.png) -->
+
+---
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
