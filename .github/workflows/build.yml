@@ -10,6 +10,7 @@ on:
         type: choice
         options:
           - android
+          - ios
           - windows
           - linux
           - macos
@@ -180,11 +181,48 @@ jobs:
           path: installers/Speed Share.dmg
 
   # -------------------------------------------------------------
-  # 5. COMMIT & PUSH BUILT INSTALLERS BACK TO REPOSITORY
+  # 5. IOS BUILD (.ipa)
+  # -------------------------------------------------------------
+  build-ios:
+    if: github.event.inputs.platform == 'ios' || github.event.inputs.platform == 'all'
+    name: Build iOS Application (.ipa)
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Build iOS Application
+        run: |
+          flutter build ios --release --no-codesign
+          mkdir -p installers
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r SpeedShare_iOS.ipa Payload
+          cp SpeedShare_iOS.ipa ../../../installers/
+
+      - name: Upload iOS Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-installer
+          path: installers/SpeedShare_iOS.ipa
+
+  # -------------------------------------------------------------
+  # 6. COMMIT & PUSH BUILT INSTALLERS BACK TO REPOSITORY
   # -------------------------------------------------------------
   commit-installers:
     name: Push Installers to Repository
-    needs: [build-android, build-windows, build-linux, build-macos]
+    needs: [build-android, build-ios, build-windows, build-linux, build-macos]
     if: always() && !cancelled() && !contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
 
@@ -202,7 +240,7 @@ jobs:
       - name: Copy installer binaries into installers directory
         run: |
           mkdir -p installers
-          find download-artifacts -type f \( -name "*.apk" -o -name "*.exe" -o -name "*.deb" -o -name "*.dmg" \) -exec cp {} installers/ \;
+          find download-artifacts -type f \( -name "*.apk" -o -name "*.exe" -o -name "*.deb" -o -name "*.dmg" -o -name "*.ipa" \) -exec cp {} installers/ \;
           ls -la installers/
 
       - name: Commit and push installers to main branch
