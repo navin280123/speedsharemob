@@ -714,15 +714,17 @@ class FileSenderScreenState extends State<FileSenderScreen>
     if (socket == null || _currentFileIndex >= _selectedFiles.length) return;
     final currentFile = _selectedFiles[_currentFileIndex];
     try {
-      final int bufferSize =
-          currentFile.size > 100 * 1024 * 1024 ? 32 * 1024 : 4 * 1024;
+      final int bufferSize = currentFile.size > 500 * 1024 * 1024
+          ? 128 * 1024
+          : (currentFile.size > 50 * 1024 * 1024 ? 64 * 1024 : 16 * 1024);
       int bytesSent = 0;
       int lastProgressUpdate = 0;
+      int bytesUnflushed = 0;
+      DateTime lastStateUpdateTime = DateTime.now();
       final int updateThreshold = (currentFile.size / 100).round().clamp(1, currentFile.size);
 
       // Stream the file in chunks instead of loading it all into memory
       final fileStream = currentFile.file.openRead();
-      int chunkCount = 0;
 
       await for (final chunk in fileStream) {
         if (socket == null) {
@@ -737,9 +739,20 @@ class FileSenderScreenState extends State<FileSenderScreen>
           socket!.add(subChunk);
           bytesSent += subChunk.length;
           _totalBytesSent += subChunk.length;
+          bytesUnflushed += subChunk.length;
+
+          // Backpressure control: flush socket buffer periodically to prevent disk reading
+          // from flooding RAM faster than the network connection can send bytes.
+          if (bytesUnflushed >= 256 * 1024) {
+            await socket!.flush();
+            bytesUnflushed = 0;
+          }
         }
 
-        if (bytesSent - lastProgressUpdate > updateThreshold && mounted) {
+        final now = DateTime.now();
+        if (bytesSent - lastProgressUpdate >= updateThreshold &&
+            now.difference(lastStateUpdateTime).inMilliseconds >= 100 &&
+            mounted) {
           setState(() {
             _selectedFiles[_currentFileIndex].progress =
                 bytesSent / currentFile.size;
@@ -747,12 +760,12 @@ class FileSenderScreenState extends State<FileSenderScreen>
             _progress = _totalBytesSent / _totalFileSize;
           });
           lastProgressUpdate = bytesSent;
+          lastStateUpdateTime = now;
         }
+      }
 
-        chunkCount++;
-        if (chunkCount % 10 == 0) {
-          await Future.delayed(Duration(milliseconds: 1));
-        }
+      if (socket != null && bytesUnflushed > 0) {
+        await socket!.flush();
       }
 
       if (mounted) {

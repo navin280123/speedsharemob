@@ -68,48 +68,75 @@ class ReceiveScreenState extends State<ReceiveScreen>
     );
   }
 
-  void _getDownloadsDirectory() async {
-  try {
-    Directory downloadDirectory;
-
+  Future<Directory> _getDefaultDownloadsDirectory() async {
     if (Platform.isAndroid) {
-      // For Android, use the public Downloads folder
-      downloadDirectory = Directory('/storage/emulated/0/Download');
+      return Directory('/storage/emulated/0/Download');
     } else if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-      // For desktop platforms, use the system Downloads directory
       final downloadsDir = await getDownloadsDirectory();
-      downloadDirectory = downloadsDir ?? await getApplicationDocumentsDirectory();
+      return downloadsDir ?? await getApplicationDocumentsDirectory();
     } else {
-      // For iOS, fallback to app documents directory (sandboxed)
-      downloadDirectory = await getApplicationDocumentsDirectory();
+      return await getApplicationDocumentsDirectory();
     }
+  }
 
-    String speedsharePath = '${downloadDirectory.path}/speedshare';
-    Directory speedshareDirectory = Directory(speedsharePath);
-    if (!await speedshareDirectory.exists()) {
-      await speedshareDirectory.create(recursive: true);
-    }
-    setState(() {
-      downloadDirectoryPath = speedsharePath;
-    });
-    _loadReceivedFiles(speedshareDirectory);
+  void _getDownloadsDirectory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? savedPath = prefs.getString('downloadPath');
+
+      Directory targetDirectory;
+      String speedsharePath;
+
+      if (savedPath != null && savedPath.trim().isNotEmpty) {
+        targetDirectory = Directory(savedPath.trim());
+        try {
+          if (!await targetDirectory.exists()) {
+            await targetDirectory.create(recursive: true);
+          }
+          speedsharePath = targetDirectory.path;
+        } catch (e) {
+          debugPrint('Custom download path inaccessible ($savedPath): $e');
+          final defaultDir = await _getDefaultDownloadsDirectory();
+          speedsharePath = '${defaultDir.path}/speedshare';
+          targetDirectory = Directory(speedsharePath);
+          if (!await targetDirectory.exists()) {
+            await targetDirectory.create(recursive: true);
+          }
+        }
+      } else {
+        final defaultDir = await _getDefaultDownloadsDirectory();
+        speedsharePath = '${defaultDir.path}/speedshare';
+        targetDirectory = Directory(speedsharePath);
+        if (!await targetDirectory.exists()) {
+          await targetDirectory.create(recursive: true);
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          downloadDirectoryPath = speedsharePath;
+        });
+      }
+      _loadReceivedFiles(Directory(speedsharePath));
     } catch (e) {
       debugPrint('Error getting downloads directory: $e');
-    // Fallback to app documents directory on any error
-    try {
-      final appDir = await getApplicationDocumentsDirectory();
-      final speedsharePath = '${appDir.path}/speedshare';
-      final speedshareDirectory = Directory(speedsharePath);
-      if (!await speedshareDirectory.exists()) {
-        await speedshareDirectory.create(recursive: true);
-      }
-      setState(() {
-        downloadDirectoryPath = speedsharePath;
-      });
-      _loadReceivedFiles(speedshareDirectory);
-    } catch (_) {}
+      // Fallback to app documents directory on any error
+      try {
+        final appDir = await getApplicationDocumentsDirectory();
+        final speedsharePath = '${appDir.path}/speedshare';
+        final speedshareDirectory = Directory(speedsharePath);
+        if (!await speedshareDirectory.exists()) {
+          await speedshareDirectory.create(recursive: true);
+        }
+        if (mounted) {
+          setState(() {
+            downloadDirectoryPath = speedsharePath;
+          });
+        }
+        _loadReceivedFiles(speedshareDirectory);
+      } catch (_) {}
+    }
   }
-}
 
   void _loadReceivedFiles(Directory directory) async {
     try {

@@ -896,23 +896,23 @@ class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
     if (_selectedDevice == null) return;
     
     try {
-      // Get Downloads directory for the active platform
+      // Get Downloads directory for the active platform (respecting Settings downloadPath)
       Directory downloadDir;
-      if (Platform.isAndroid) {
-        downloadDir = Directory('/storage/emulated/0/Download/speedshare');
-      } else if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-        final downloadsDir = await getDownloadsDirectory();
-        final base = downloadsDir ?? await getApplicationDocumentsDirectory();
-        downloadDir = Directory('${base.path}/speedshare');
+      final prefs = await SharedPreferences.getInstance();
+      final String? savedPath = prefs.getString('downloadPath');
+
+      if (savedPath != null && savedPath.trim().isNotEmpty) {
+        downloadDir = Directory(savedPath.trim());
+        try {
+          if (!await downloadDir.exists()) {
+            await downloadDir.create(recursive: true);
+          }
+        } catch (e) {
+          debugPrint('Custom sync download path inaccessible ($savedPath): $e');
+          downloadDir = await _getDefaultSyncDownloadDirectory();
+        }
       } else {
-        // iOS
-        final appDir = await getApplicationDocumentsDirectory();
-        downloadDir = Directory('${appDir.path}/speedshare');
-      }
-      
-      // Create directory if it doesn't exist
-      if (!await downloadDir.exists()) {
-        await downloadDir.create(recursive: true);
+        downloadDir = await _getDefaultSyncDownloadDirectory();
       }
       
       final savePath = p.join(downloadDir.path, file.name);
@@ -979,6 +979,23 @@ class SyncScreenState extends State<SyncScreen> with TickerProviderStateMixin {
     } catch (e) {
       _showErrorSnackBar('Error downloading file: $e');
     }
+  }
+
+  Future<Directory> _getDefaultSyncDownloadDirectory() async {
+    Directory base;
+    if (Platform.isAndroid) {
+      base = Directory('/storage/emulated/0/Download');
+    } else if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+      final downloadsDir = await getDownloadsDirectory();
+      base = downloadsDir ?? await getApplicationDocumentsDirectory();
+    } else {
+      base = await getApplicationDocumentsDirectory();
+    }
+    final dir = Directory('${base.path}/speedshare');
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+    return dir;
   }
 
   void _showSuccessSnackBar(String message) {
