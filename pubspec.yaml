@@ -66,10 +66,10 @@ dev_dependencies:
 
 # MSIX Package Configuration for Windows & Microsoft Store
 msix_config:
-  display_name: SpeedShare
-  publisher_display_name:  Navin Kumar Verma
-  publisher: CN=SpeedShare
-  identity_name: SpeedShare.SpeedShare
+  display_name: Speed Share
+  publisher_display_name: Navin Kumar Verma
+  publisher: CN=ACBB341E-4035-40AE-9F2A-6A805AB8B510
+  identity_name: NavinKumarVerma.SpeedShare
   msix_version: 1.0.6.0
   logo_path: assets/icon.png
   capabilities: internetClient, privateNetworkClientServer
