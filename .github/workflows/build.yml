@@ -84,13 +84,13 @@ jobs:
       - name: Build Windows Application
         run: flutter build windows --release
 
-      - name: Build MSIX Package (.msix)
+      - name: Build MSIX Package for Microsoft Store
         run: dart run msix:create --store
 
       - name: Install Inno Setup
         run: choco install innosetup -y
 
-      - name: Compile Windows Setup (.exe)
+      - name: Compile Windows Setup (.exe) and Package (.msix)
         run: |
           if (!(Test-Path -Path "installers")) { New-Item -ItemType Directory -Path "installers" }
           if (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe") {
@@ -98,16 +98,12 @@ jobs:
           } else {
             iscc inno_setup.iss
           }
-
-      - name: Move MSIX package to installers folder
-        run: |
-          if (!(Test-Path -Path "installers")) { New-Item -ItemType Directory -Path "installers" }
           Get-ChildItem -Path "build\windows\x64\runner\Release\*.msix" | Copy-Item -Destination "installers/SpeedShare_Windows.msix"
 
-      - name: Upload Windows Installers (.exe & .msix)
+      - name: Upload Windows Installers
         uses: actions/upload-artifact@v4
         with:
-          name: windows-installer
+          name: windows-installers
           path: installers/*
 
 
