@@ -4,7 +4,8 @@ AppId={{5A1B8C9D-E23F-47A6-9128-DBF5A9A01C2E}
 AppName=SpeedShare
 AppVersion=1.0.0
 AppPublisher=SpeedShare Team
-DefaultDirName={autopf}\SpeedShare
+AppPublisherURL=https://github.com/navin280123/speedsharemob
+DefaultDirName={userpf}\SpeedShare
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
 DisableProgramGroupPage=yes
@@ -15,6 +16,9 @@ Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
+CreateUninstallRegKey=yes
+UninstallDisplayName=SpeedShare
+UninstallDisplayIcon={app}\speedsharemob.exe
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
