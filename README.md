@@ -116,7 +116,7 @@ Speed Share includes a multi-platform GitHub Actions build pipeline (`.github/wo
 Speed Share is built with privacy at its core:
 * **Zero Telemetry / Data Collection:** No personal data, transfer logs, or metrics are sent outside your local network.
 * **Direct Peer-to-Peer:** All data remains strictly on your local subnet.
-* For more details, see our [Privacy Policy](privacy-policy.md).
+* For more details, see our [Privacy Policy](privacy-policy.md) and [Terms and Conditions](terms-and-conditions.md).
 
 ---
 
