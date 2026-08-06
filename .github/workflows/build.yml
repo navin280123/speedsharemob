@@ -84,6 +84,9 @@ jobs:
       - name: Build Windows Application
         run: flutter build windows --release
 
+      - name: Build MSIX Package (.msix)
+        run: dart run msix:create --store
+
       - name: Install Inno Setup
         run: choco install innosetup -y
 
@@ -96,11 +99,17 @@ jobs:
             iscc inno_setup.iss
           }
 
-      - name: Upload Windows Installer
+      - name: Move MSIX package to installers folder
+        run: |
+          if (!(Test-Path -Path "installers")) { New-Item -ItemType Directory -Path "installers" }
+          Get-ChildItem -Path "build\windows\x64\runner\Release\*.msix" | Copy-Item -Destination "installers/SpeedShare_Windows.msix"
+
+      - name: Upload Windows Installers (.exe & .msix)
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
-          path: installers/SpeedShare_Windows_Setup.exe
+          path: installers/*
+
 
   # -------------------------------------------------------------
   # 3. LINUX BUILD (.deb)
@@ -240,7 +249,7 @@ jobs:
       - name: Copy installer binaries into installers directory
         run: |
           mkdir -p installers
-          find download-artifacts -type f \( -name "*.apk" -o -name "*.exe" -o -name "*.deb" -o -name "*.dmg" -o -name "*.ipa" \) -exec cp {} installers/ \;
+          find download-artifacts -type f \( -name "*.apk" -o -name "*.exe" -o -name "*.deb" -o -name "*.dmg" -o -name "*.ipa" -o -name "*.msix" \) -exec cp {} installers/ \;
           ls -la installers/
 
       - name: Commit and push installers to main branch

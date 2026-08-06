@@ -62,6 +62,21 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  msix: ^3.16.7
+
+# MSIX Package Configuration for Windows & Microsoft Store
+msix_config:
+  display_name: SpeedShare
+  publisher_display_name:  Navin Kumar Verma
+  publisher: CN=SpeedShare
+  identity_name: SpeedShare.SpeedShare
+  msix_version: 1.0.6.0
+  logo_path: assets/icon.png
+  capabilities: internetClient, privateNetworkClientServer
+  install_certificate: false
+
+
+
 
 # App Icon Configuration
 flutter_launcher_icons:
